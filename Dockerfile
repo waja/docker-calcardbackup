@@ -16,7 +16,7 @@ RUN apk --no-cache add --virtual build-dependencies git ca-certificates && \
   # Remove build deps
   apk del build-dependencies && \
   # Install needed packages
-  apk add --update bash coreutils curl mysql-client gzip && rm -rf /var/cache/apk/* && \
+  apk add --update bash coreutils curl findutils mysql-client gzip && rm -rf /var/cache/apk/* && \
   # Create backup dir and make our start script executable
   mkdir /backup && chmod u+x /run.sh
 
