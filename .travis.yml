@@ -1,0 +1,12 @@
+sudo: required
+dist: trusty
+language: c
+
+services:
+  - docker
+
+install:
+  - make build
+
+script:
+  - make test
