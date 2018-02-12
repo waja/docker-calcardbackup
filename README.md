@@ -17,7 +17,7 @@
 
 ## Variables
 
-    CRON_TIME       the interval of cron job to run mysqldump. `0 0 * * *` by default, which is every day at 00:00 (optional)
+    CRON_TIME       the interval of cron job to run mysqldump. `5 4 * * *` by default, which is every day at 04:05 (optional)
     INIT_BACKUP     if set, create a backup when the container starts (optional)
     BACKUP_DIR      location where the backup should be stored (optional)
     NC_DIR          location where Nextcloud config/config.php is searched for (optional)
