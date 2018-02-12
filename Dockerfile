@@ -18,7 +18,7 @@ RUN apk --no-cache add --virtual build-dependencies git ca-certificates && \
   # Install needed packages
   apk add --update bash coreutils curl findutils mysql-client postgresql-client sqlite gzip && rm -rf /var/cache/apk/* && \
   # Create backup dir and make our start script executable
-  mkdir /backup && chmod u+x /run.sh
+  mkdir /backup
 
 VOLUME ["/backup"]
 
