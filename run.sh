@@ -9,7 +9,7 @@ if [ -n "${INIT_BACKUP}" ]; then
   ${BACKUP_CMD}
 fi
 
-echo "${CRON_TIME} ${BACKUP_CMD} >> ${BACKUP_LOG} 2>&1" > /crontab.conf
+echo "${CRON_TIME:=5 4 * * *} ${BACKUP_CMD} >> ${BACKUP_LOG} 2>&1" > /crontab.conf
 crontab /crontab.conf
 echo "=> Running cron task manager"
 exec crond -f

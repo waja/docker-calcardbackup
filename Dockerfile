@@ -20,8 +20,6 @@ RUN apk --no-cache add --virtual build-dependencies git ca-certificates && \
   # Create backup dir and make our start script executable
   mkdir /backup && chmod u+x /run.sh
 
-ENV CRON_TIME="5 4 * * *"
-
 VOLUME ["/backup"]
 
 CMD ["/run.sh"]
