@@ -11,8 +11,6 @@ RUN apk --no-cache add --virtual build-dependencies git ca-certificates && \
   git clone https://github.com/BernieO/calcardbackup.git /opt/calcardbackup && cd /opt/calcardbackup && \
   # Checkout latest tag
   LATEST_TAG=$(git tag -l 'v*.[0-9]' --sort='v:refname'| tail -1); git checkout $LATEST_TAG -b $LATEST_TAG && \
-  # Set global git config
-  #git config --global user.name "Jingo Wiki" && git config --global user.email "everyone@jingo" && \
   # Remove build deps
   apk del build-dependencies && \
   # Install needed packages
