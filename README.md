@@ -21,4 +21,8 @@
     INIT_BACKUP     if set, create a backup when the container starts
     BACKUP_DIR      location where the backup should be stored
     NC_DIR          location where Nextcloud config/config.php is searched for
+    NC_HOST         hostname Nextcloud webinterface running on
+    NC_PORT         port Nextcloud webinterface running on
+    DB_HOST         hostname database running on
+    DB_PORT         port database running on
     CALCARD_OPTS    options passed to calcardbackup

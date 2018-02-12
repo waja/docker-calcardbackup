@@ -6,6 +6,18 @@ tail -F ${BACKUP_LOG} &
 
 if [ -n "${INIT_BACKUP}" ]; then
   echo "=> Create a backup on the startup"
+  if [ -n "${NC_HOST}" ]; then
+    until nc -z "${NC_HOST}" "${NC_PORT:=443}"; do
+      echo "waiting for Nextcloud webinterface ..."
+      sleep 1
+    done
+  fi
+  if [ -n "${DB_HOST}" ]; then
+    until nc -z "${DB_HOST}" "${DB_PORT:=3306}"; do
+      echo "waiting for database container ..."
+      sleep 1
+    done
+  fi
   ${BACKUP_CMD}
 fi
 
