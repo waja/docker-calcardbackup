@@ -1,5 +1,5 @@
 #!/bin/bash
-BACKUP_CMD="/opt/calcardbackup/calcardbackup ${NC_DIR} --output /backup/ ${CALCARD_OPTS}"
+BACKUP_CMD="/opt/calcardbackup/calcardbackup ${NC_DIR:=/nextcloud/} --output ${BACKUP_DIR:=/backup/} ${CALCARD_OPTS:=-i}"
 BACKUP_LOG="/backup.log"
 touch ${BACKUP_LOG}
 tail -F ${BACKUP_LOG} &

@@ -18,4 +18,6 @@
 
     CRON_TIME       the interval of cron job to run mysqldump. `0 0 * * *` by default, which is every day at 00:00
     INIT_BACKUP     if set, create a backup when the container starts
+    BACKUP_DIR      location where the backup should be stored
+    NC_DIR          location where Nextcloud config/config.php is searched for
     CALCARD_OPTS    options passed to calcardbackup
