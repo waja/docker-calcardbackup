@@ -1,5 +1,5 @@
 #!/bin/bash
-BACKUP_CMD="/opt/calcardbackup/calcardbackup --output /backup/ ${CALCARD_OPTS} ${NC_DIR}"
+BACKUP_CMD="/opt/calcardbackup/calcardbackup ${NC_DIR} --output /backup/ ${CALCARD_OPTS}"
 BACKUP_LOG="/backup.log"
 touch ${BACKUP_LOG}
 tail -F ${BACKUP_LOG} &
