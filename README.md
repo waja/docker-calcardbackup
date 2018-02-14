@@ -1,5 +1,7 @@
 # Docker-Calcardbackup
 
+[![](https://images.microbadger.com/badges/version/waja/calcardbackup.svg)](https://hub.docker.com/r/waja/calcardbackup/)
+[![](https://images.microbadger.com/badges/image/waja/calcardbackup.svg)](https://hub.docker.com/r/waja/calcardbackup/)
 [![Build Status](https://travis-ci.org/Cyconet/docker-calcardbackup.svg?branch=development)](https://travis-ci.org/Cyconet/docker-calcardbackup)
 [![Docker Build Status](https://img.shields.io/docker/build/waja/calcardbackup.svg)](https://hub.docker.com/r/waja/calcardbackup/)
 [![GitHub tag](https://img.shields.io/github/tag/Cyconet/docker-calcardbackup.svg)](https://github.com/Cyconet/docker-calcardbackup/tags)
