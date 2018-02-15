@@ -5,8 +5,9 @@ MAINTAINER Jan Wagner "waja@cyconet.org"
 
 COPY ["run.sh", "/"]
 
-# Install dependencies
-RUN apk --no-cache add --virtual build-dependencies git ca-certificates && \
+RUN apk --no-cache update && apk --no-cache upgrade && \
+  # Install dependencies
+  apk --no-cache add --virtual build-dependencies git ca-certificates && \
   # Pull calcardbackup source
   git clone https://github.com/BernieO/calcardbackup.git /opt/calcardbackup && cd /opt/calcardbackup && \
   # Checkout latest tag
