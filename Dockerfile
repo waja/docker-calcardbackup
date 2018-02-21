@@ -9,7 +9,7 @@ ARG "VCS_URL=unknown"
 ARG "VCS_REF=unknown"
 ARG "VCS_BRANCH=unknown"
 
-ENV "GIT_PROJECT=BernieO/calcardbackup"
+ENV GIT_PROJECT=BernieO/calcardbackup
 
 # See http://label-schema.org/rc1/ and https://microbadger.com/labels
 LABEL org.label-schema.name="calcardbackup - ownCloud/Nextcloud backup tool" \
