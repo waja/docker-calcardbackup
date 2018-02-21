@@ -9,6 +9,8 @@ ARG "VCS_URL=unknown"
 ARG "VCS_REF=unknown"
 ARG "VCS_BRANCH=unknown"
 
+ENV "GIT_PROJECT=BernieO/calcardbackup"
+
 # See http://label-schema.org/rc1/ and https://microbadger.com/labels
 LABEL org.label-schema.name="calcardbackup - ownCloud/Nextcloud backup tool" \
     org.label-schema.description="backup calendars and addressbooks from a local ownCloud/Nextcloud installation on Alpine Linux based container" \
@@ -24,11 +26,11 @@ COPY ["run.sh", "/"]
 
 RUN apk --no-cache update && apk --no-cache upgrade && \
   # Install dependencies
-  apk --no-cache add --virtual build-dependencies git ca-certificates && \
-  # Pull calcardbackup source
-  git clone https://github.com/BernieO/calcardbackup.git /opt/calcardbackup && cd /opt/calcardbackup && \
-  # Checkout latest tag
-  LATEST_TAG=$(git tag -l 'v*.[0-9]' --sort='v:refname'| tail -1); git checkout $LATEST_TAG -b $LATEST_TAG && \
+  apk --no-cache add --virtual build-dependencies ca-certificates tar curl jq && \
+  # Create directory
+  mkdir -p /opt/calcardbackup && cd /opt/calcardbackup && \
+  # Download latest release
+  curl -L $(curl -s https://api.github.com/repos/$GIT_PROJECT/releases/latest | jq -r ".tarball_url") | tar xz --strip=1 && \
   # Remove build deps
   apk del build-dependencies && \
   # Install needed packages
