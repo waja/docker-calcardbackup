@@ -1,0 +1,121 @@
+version: '3'
+
+services:
+  nextcloud:
+    image: hoellen/nextcloud:15.0
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+      - traefik.enable=true
+      - traefik.backend=nextcloud
+      - traefik.frontend.rule=Host:nextcloud.test.org
+      - traefik.docker.network=traefik_default
+      - traefik.port=8888
+      - traefik.default.protocol=http
+      - "traefik.frontend.redirect.regex=^(.*)/.well-known/webfinger"
+      - "traefik.frontend.redirect.replacement=$$1/public.php?service=webfinger"
+    links:
+      - nextcloud-db:nextcloud-db
+      - nextcloud-redis:nextcloud-redis
+    environment:
+      - UID=1000
+      - GID=1000
+      - UPLOAD_MAX_SIZE=10G
+      - APC_SHM_SIZE=128M
+      - OPCACHE_MEM_SIZE=128
+      - CRON_PERIOD=15m
+      - TZ=Europe/Berlin
+      - DOMAIN=nextcloud.test.org
+      - DB_TYPE=mysql
+      - DB_NAME=nextcloud
+      - DB_USER=nextcloud
+      - DB_PASSWORD=YOUSHOULDHAVECHANGEDTHAT
+      - DB_HOST=nextcloud-db
+      - CHECK_PERMISSIONS=1
+    depends_on:
+      - nextcloud-db
+      - nextcloud-redis
+    networks:
+      - default
+      - traefik_default
+    restart: unless-stopped
+    volumes:
+      - ./data:/data
+      - ./config:/config
+      - ./apps:/apps2
+      - ./themes:/nextcloud/themes
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+
+  nextcloud-db:
+    image: mariadb:10.3
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+    environment:
+      - MYSQL_ROOT_PASSWORD=YOUSHOULDHAVECHANGEDTHATTOO
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+      - MYSQL_PASSWORD=YOUSHOULDHAVECHANGEDTHAT
+    restart: unless-stopped
+    volumes:
+      - ./mysql:/var/lib/mysql
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+
+  nextcloud-redis:
+    image: redis:5.0-alpine
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+    restart: unless-stopped
+    volumes:
+      - ./redis:/data
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+
+  nextcloud-db-backup:
+    image: fradelg/mysql-cron-backup
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+    links:
+      - nextcloud-db:nextcloud-db
+    environment:
+      - MYSQL_HOST=nextcloud-db
+      - MYSQL_USER=nextcloud
+      - MYSQL_PASS=YOUSHOULDHAVECHANGEDTHAT
+      - MAX_BACKUPS=20
+      - CRON_TIME=0 0 * * *
+    depends_on:
+      - nextcloud-db
+    restart: unless-stopped
+    volumes:
+      - ./mysql-backups:/backup
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+
+  nextcloud-nc-backup:
+    image: waja/calcardbackup
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+    links:
+      - nextcloud-db:nextcloud-db
+      - nextcloud:nextcloud
+    environment:
+      - CRON_TIME=0 0 * * *
+      - INIT_BACKUP=yes
+      - CALCARD_OPTS=-i -r 20
+      - NC_DIR=/nextcloud
+      - NC_HOST=nextcloud
+      - NC_PORT=8888
+      - DB_HOST=nextcloud-db
+    depends_on:
+      - nextcloud-db
+      - nextcloud
+    restart: unless-stopped
+    volumes:
+      - ./calcardbackup:/backup
+      - ./config:/nextcloud/config
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+ 
+networks:
+  traefik_default:
+    external: true

@@ -17,6 +17,10 @@
     --volume /path/to/my/nextcloud/config:/nextcloud/config
     waja/calcardbackup
 
+## docker compose
+
+  There is a `docker-compose-example.yml` and a `docker-compose-complex-example.yml` available. Feel free to have a look if there is something you can use.
+
 ## Variables
 
     CRON_TIME       the interval of cron job to run mysqldump. `5 4 * * *` by default, which is every day at 04:05 (optional)

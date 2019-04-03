@@ -1,0 +1,49 @@
+version: '3'
+
+services:
+  nextcloud:
+    image: hoellen/nextcloud:15.0
+    restart: unless-stopped
+    volumes:
+      - ./data:/data
+      - ./config:/config
+      - ./apps:/apps2
+      - ./themes:/nextcloud/themes
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+
+  nextcloud-db:
+    image: mariadb:10.3
+    environment:
+      - MYSQL_ROOT_PASSWORD=YOUSHOULDHAVECHANGEDTHATTOO
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+      - MYSQL_PASSWORD=YOUSHOULDHAVECHANGEDTHAT
+    restart: unless-stopped
+    volumes:
+      - ./mysql:/var/lib/mysql
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+
+  nextcloud-nc-backup:
+    image: waja/calcardbackup
+    links:
+      - nextcloud-db:nextcloud-db
+      - nextcloud:nextcloud
+    environment:
+      - CRON_TIME=0 0 * * *
+      - INIT_BACKUP=yes
+      - CALCARD_OPTS=-i -r 20
+      - NC_DIR=/nextcloud
+      - NC_HOST=nextcloud
+      - NC_PORT=8888
+      - DB_HOST=nextcloud-db
+    depends_on:
+      - nextcloud-db
+      - nextcloud
+    restart: unless-stopped
+    volumes:
+      - ./calcardbackup:/backup
+      - ./config:/nextcloud/config
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
