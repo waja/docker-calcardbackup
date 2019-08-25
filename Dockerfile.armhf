@@ -22,8 +22,6 @@ LABEL org.label-schema.name="calcardbackup - ownCloud/Nextcloud backup tool" \
     org.label-schema.vcs-ref="${VCS_REF:-unknown}" \
     org.label-schema.vcs-branch="${VCS_BRANCH:-unknown}"
 
-COPY qemu-arm-static /usr/bin/
-
 COPY ["run.sh", "/"]
 
 RUN apk --no-cache update && apk --no-cache upgrade && \
@@ -39,6 +37,8 @@ RUN apk --no-cache update && apk --no-cache upgrade && \
   apk add --update bash curl findutils mysql-client postgresql-client sqlite gzip && rm -rf /var/cache/apk/* && \
   # Create backup dir and make our start script executable
   mkdir /backup
+
+COPY qemu-arm-static /usr/bin/
 
 VOLUME ["/backup"]
 
