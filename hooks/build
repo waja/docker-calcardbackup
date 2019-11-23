@@ -5,8 +5,8 @@
 # See https://gist.github.com/rossf7/664dc1eb02f514993c7215d37058965c and
 # https://docs.docker.com/docker-cloud/builds/advanced/
 
+BUILD_ARCH=${DOCKER_TAG}
 echo "Build hook running"
-echo $(uname --m)
 docker build \
              --file "${DOCKERFILE_PATH}"\
              --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` \
