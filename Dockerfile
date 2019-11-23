@@ -1,5 +1,5 @@
 ARG IMAGE_ARCH
-FROM ${IMAGE_ARCH}alpine:3.10
+FROM ${IMAGE_ARCH}
 
 # Dockerfile Maintainer
 MAINTAINER Jan Wagner "waja@cyconet.org"
