@@ -16,6 +16,6 @@ docker build \
              --build-arg VCS_URL=$(git config --get remote.origin.url) \
              --build-arg VCS_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
              --build-arg QEMU_ARCH=$([ "${BUILD_ARCH}" == "armhf" ] && echo "${BUILD_ARCH::-2}" || echo "${BUILD_ARCH}") \
-             --build-arg IMAGE_ARCH==$([ "${BUILD_ARCH}" == "armhf" ] && echo "arm32v7/alpine:${ALPINE_VERSION}" || ([ "${BUILD_ARCH}" == "aarch64" ] && echo "arm64v8/alpine:${ALPINE_VERSION}") || echo "alpine:${ALPINE_VERSION}") \
+             --build-arg IMAGE_ARCH=$([ "${BUILD_ARCH}" == "armhf" ] && echo "arm32v7/alpine:${ALPINE_VERSION}" || ([ "${BUILD_ARCH}" == "aarch64" ] && echo "arm64v8/alpine:${ALPINE_VERSION}") || echo "alpine:${ALPINE_VERSION}") \
              --tag "$IMAGE_NAME" \
              .
