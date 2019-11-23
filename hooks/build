@@ -14,6 +14,6 @@ docker build \
              --build-arg VCS_REF=`git rev-parse --short HEAD` \
              --build-arg VCS_URL=$(git config --get remote.origin.url) \
              --build-arg VCS_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-             --build-arg QEMU_ARCH=$([ "${BUILD_ARCH}" == "armhf" ] && echo "${BUILD_ARCH::-2}" || echo "${BUILD_ARCH}")
+             --build-arg QEMU_ARCH=$([ "${BUILD_ARCH}" == "armhf" ] && echo "${BUILD_ARCH::-2}" || echo "${BUILD_ARCH}") \
              --tag "$IMAGE_NAME" \
              .
