@@ -24,7 +24,7 @@ LABEL org.label-schema.name="calcardbackup - ownCloud/Nextcloud backup tool" \
     org.label-schema.vcs-ref="${VCS_REF:-unknown}" \
     org.label-schema.vcs-branch="${VCS_BRANCH:-unknown}"
 
-COPY README.md qemu-${QEMU_ARCH}-static /usr/bin/ 
+COPY README.md qemu-${QEMU_ARCH}-static* /usr/bin/ 
 RUN rm -f /usr/bin/README.md
 COPY ["run.sh", "/"]
 
