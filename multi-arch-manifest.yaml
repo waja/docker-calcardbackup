@@ -1,0 +1,14 @@
+image: morlan/calcardbackup:latest
+manifests:
+  - image: morlan/calcardbackup:amd64
+    platform:
+      architecture: amd64
+      os: linux
+  - image: morlan/calcardbackup:armhf
+    platform:
+      architecture: arm
+      os: linux
+  - image: morlan/calcardbackup:aarch64
+    platform:
+      architecture: arm64
+      os: linux
