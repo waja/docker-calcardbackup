@@ -6,6 +6,7 @@
 # https://docs.docker.com/docker-cloud/builds/advanced/
 
 echo "Build hook running"
+echo $(uname --m)
 docker build \
              --file "${DOCKERFILE_PATH}"\
              --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` \
