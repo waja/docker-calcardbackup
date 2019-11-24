@@ -1,14 +1,14 @@
-image: morlan/calcardbackup:latest
+image: ${DOCKER_REPO}:latest
 manifests:
-  - image: morlan/calcardbackup:amd64
+  - image: ${DOCKER_REPO}:amd64
     platform:
       architecture: amd64
       os: linux
-  - image: morlan/calcardbackup:armhf
+  - image: ${DOCKER_REPO}:armhf
     platform:
       architecture: arm
       os: linux
-  - image: morlan/calcardbackup:aarch64
+  - image: ${DOCKER_REPO}:aarch64
     platform:
       architecture: arm64
       os: linux
