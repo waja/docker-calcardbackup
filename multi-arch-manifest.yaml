@@ -1,14 +1,14 @@
-image: ${DOCKER_REPO}:latest
+image: morlan/${DOCKER_REPO}:latest
 manifests:
-  - image: ${DOCKER_REPO}:amd64
+  - image: morlan/${DOCKER_REPO}:amd64
     platform:
       architecture: amd64
       os: linux
-  - image: ${DOCKER_REPO}:armhf
+  - image: morlan/${DOCKER_REPO}:armhf
     platform:
       architecture: arm
       os: linux
-  - image: ${DOCKER_REPO}:aarch64
+  - image: morlan/${DOCKER_REPO}:aarch64
     platform:
       architecture: arm64
       os: linux
