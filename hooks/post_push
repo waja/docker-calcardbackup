@@ -1,17 +1,17 @@
 #!/bin/bash
 echo "Creating multi-arch-manifest.yaml"
 cat > multi-arch-manifest.yaml << EOF
-image: $(echo "${DOCKER_REPO}" | cut -d/ -f2):latest 
+image: $(echo "${DOCKER_REPO}" | cut -d/ -f2,3):latest 
 manifests:
-  - image: $(echo "${DOCKER_REPO}" | cut -d/ -f2):amd64
+  - image: $(echo "${DOCKER_REPO}" | cut -d/ -f2,3):amd64
     platform:
       architecture: amd64
       os: linux
-  - image: $(echo "${DOCKER_REPO}" | cut -d/ -f2):armhf
+  - image: $(echo "${DOCKER_REPO}" | cut -d/ -f2,3):armhf
     platform:
       architecture: arm
       os: linux
-  - image: $(echo "${DOCKER_REPO}" | cut -d/ -f2):aarch64
+  - image: $(echo "${DOCKER_REPO}" | cut -d/ -f2,3):aarch64
     platform:
       architecture: arm64
       os: linux
