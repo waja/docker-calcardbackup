@@ -1,5 +1,5 @@
 #!/bin/bash
-Echo "Creating multi-arch-manifest.yaml"
+echo "Creating multi-arch-manifest.yaml"
 cat > multi-arch-manifest.yaml << EOF
 image:
 ${DOCKER_REPO}:latest manifests:
