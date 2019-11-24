@@ -1,22 +1,22 @@
 #!/bin/bash
 echo "Creating multi-arch-manifest.yaml"
 cat > multi-arch-manifest.yaml << EOF
-image:
-${DOCKER_REPO}:latest manifests:
-  - image: ${DOCKER_REPO}:amd64
+image: $(echo "${DOCKER_REPO}" | cut -d/ -f2):latest 
+manifests:
+  - image: $(echo "${DOCKER_REPO}" | cut -d/ -f2):amd64
     platform:
       architecture: amd64
       os: linux
-  - image: ${DOCKER_REPO}:armhf
+  - image: $(echo "${DOCKER_REPO}" | cut -d/ -f2):armhf
     platform:
       architecture: arm
       os: linux
-  - image: ${DOCKER_REPO}:aarch64
+  - image: $(echo "${DOCKER_REPO}" | cut -d/ -f2):aarch64
     platform:
       architecture: arm64
       os: linux
 EOF
-
+#show output of file for test purposes
 cat multi-arch-manifest.yaml
 
 curl -Lo manifest-tool https://github.com/estesp/manifest-tool/releases/download/v0.9.0/manifest-tool-linux-amd64
