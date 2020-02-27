@@ -36,7 +36,7 @@ RUN apk --no-cache update && apk --no-cache upgrade && \
   # Create directory
   mkdir -p /opt/calcardbackup && cd /opt/calcardbackup && \
   # Download latest release
-  curl -L $(curl -s https://api.github.com/repos/$GIT_PROJECT/releases/latest | jq -r ".tarball_url") | tar xz --strip=1 && \
+  curl -L $(curl -s https://codeberg.org/api/v1/repos/$GIT_PROJECT/releases | jq -r ".[0].tarball_url") | tar xz --strip=1 && \
   # Remove build deps
   apk del build-dependencies && \
   # Install needed packages
