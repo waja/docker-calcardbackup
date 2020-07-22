@@ -8,7 +8,7 @@
 #getting the right arch from the docker tag, which is specified in the automatic build configuration. The working tags are: amd64, armhf, aarch64.
 BUILD_ARCH=${DOCKER_TAG}
 #here the base image version is specified.
-ALPINE_VERSION=3.11
+ALPINE_VERSION=3.12
 echo "Build hook running"
 docker build \
              --file "${DOCKERFILE_PATH}"\
