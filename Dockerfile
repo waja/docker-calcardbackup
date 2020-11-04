@@ -1,8 +1,5 @@
 FROM alpine:3.12
 
-# Dockerfile Maintainer
-MAINTAINER Jan Wagner "waja@cyconet.org"
-
 ARG BUILD_DATE
 ARG BUILD_VERSION
 ARG VCS_URL
@@ -24,17 +21,21 @@ LABEL org.label-schema.name="calcardbackup - ownCloud/Nextcloud backup tool" \
 
 COPY ["run.sh", "/"]
 
+# hadolint ignore=DL3017,DL3018
 RUN apk --no-cache update && apk --no-cache upgrade && \
   # Install dependencies
   apk --no-cache add --virtual build-dependencies ca-certificates tar curl jq && \
   # Create directory
-  mkdir -p /opt/calcardbackup && cd /opt/calcardbackup && \
-  # Download latest release
-  curl -L $(curl -s https://codeberg.org/api/v1/repos/$GIT_PROJECT/releases | jq -r ".[0].tarball_url") | tar xz --strip=1 && \
+  mkdir -p /opt/calcardbackup
+WORKDIR /opt/calcardbackup
+# Download latest release
+SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
+# hadolint ignore=DL3017,DL3018
+RUN curl -L "$(curl -s https://codeberg.org/api/v1/repos/$GIT_PROJECT/releases | jq -r ".[0].tarball_url")" | tar xz --strip=1 && \
   # Remove build deps
   apk del build-dependencies && \
   # Install needed packages
-  apk add --update bash curl findutils mysql-client postgresql-client sqlite gzip && rm -rf /var/cache/apk/* && \
+  apk --no-cache add bash curl findutils mysql-client postgresql-client sqlite gzip && \
   # Create backup dir and make our start script executable
   mkdir /backup
 
