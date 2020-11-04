@@ -1,8 +1,5 @@
 FROM alpine:3.12
 
-# Dockerfile Maintainer
-MAINTAINER Jan Wagner "waja@cyconet.org"
-
 ARG BUILD_DATE
 ARG BUILD_VERSION
 ARG VCS_URL
