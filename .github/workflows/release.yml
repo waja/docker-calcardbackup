@@ -1,3 +1,6 @@
+# https://iam.thunder.spb.ru/posts/2021/01/09/github-actions-and-pushing-container-to-multiple-registries
+# https://github.com/rpki-client/rpki-client-container/blob/master/.github/workflows/image.yml
+# https://docs.docker.com/ci-cd/github-actions/
 name: Publish Releases to Github Container Registry
 
 # When its time to do a release do a full cross platform build for all supported
@@ -24,7 +27,7 @@ jobs:
         run: |
           USER=${GITHUB_ACTOR}
           IMAGE_NAME=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}' | sed  s/docker-//)
-          DOCKER_IMAGE=ghcr.io/${USER}/${IMAGE_NAME}
+          DOCKER_IMAGE=${USER}/${IMAGE_NAME}
           VERSION=edge
           # running on a tag
           if [[ $GITHUB_REF == refs/tags/* ]]; then
@@ -73,6 +76,13 @@ jobs:
           username: ${USER}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Login to DockerHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Test
         id: docker_test
         uses: docker/build-push-action@v2
@@ -92,7 +102,9 @@ jobs:
 #          target: prod
           platforms: linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64,linux/ppc64le,linux/s390x
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.prep.outputs.tags }}
+          tags: |
+            ${{ steps.prep.outputs.tags }}
+            ghcr.io/${{ steps.prep.outputs.tags }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
 
