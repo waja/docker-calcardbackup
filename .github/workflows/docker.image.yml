@@ -6,6 +6,8 @@ on:
       - $default-branch
       - development
       - master
+    tags:
+      - '*.*.*-*'
   # Run tests for any PRs
   pull_request:
 

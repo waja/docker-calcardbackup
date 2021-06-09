@@ -7,13 +7,15 @@ name: Publish Releases to Github Container Registry
 # architectures and push all of them to GHCR.
 # Only trigger on semver shaped tags.
 on:
-  push:
+  workflow_run:
+    workflows: ["Docker Image CI"]
     # push on all tags
     tags:
       - '*.*.*-*'
     branches:
       - master
       - development
+    types: [completed]
 
 jobs:
   docker:
