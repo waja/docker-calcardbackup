@@ -18,7 +18,7 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-    - name: lint zammad dockerfile
+    - name: lint dockerfile
       uses: brpaz/hadolint-action@master
       with:
         dockerfile: Dockerfile
