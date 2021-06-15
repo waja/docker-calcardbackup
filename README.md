@@ -10,7 +10,7 @@
 [![](https://img.shields.io/docker/stars/waja/calcardbackup.svg)](https://hub.docker.com/r/waja/calcardbackup/)
 [![](https://img.shields.io/docker/automated/waja/calcardbackup.svg)](https://hub.docker.com/r/waja/calcardbackup/)
 
-## Usage:
+## Usage
 
   docker container run -d \
     --link mysql
