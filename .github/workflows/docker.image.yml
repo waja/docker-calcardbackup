@@ -15,18 +15,33 @@ env:
   IMAGE_NAME: calcardbackup
 
 jobs:
-  lint-docker-file:
+  codespell:
+    name: codespell
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-    - name: lint dockerfile
-      uses: brpaz/hadolint-action@master
-      with:
-        dockerfile: Dockerfile
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Codespell
+        uses: codespell-project/actions-codespell@master
+        with:
+          skip: .git
+          check_filenames: true
+          check_hidden: true
+  super-linter:
+    name: super-linter
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Lint Code Base
+        uses: github/super-linter@v3
+        env:
+          DEFAULT_BRANCH: master
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   build:
     needs:
-      - lint-docker-file
+      - codespell
+      - super-linter
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
