@@ -6,9 +6,9 @@
 # https://docs.docker.com/docker-cloud/builds/advanced/
 
 echo "Build hook running"
-docker build --build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` \
-             --build-arg BUILD_VERSION=$(git describe --tags) \
-             --build-arg VCS_REF=`git rev-parse --short HEAD` \
-             --build-arg VCS_URL=$(git config --get remote.origin.url) \
-             --build-arg VCS_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-             -t $IMAGE_NAME .
+docker build --build-arg BUILD_DATE="$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+             --build-arg BUILD_VERSION="$(git describe --tags)" \
+             --build-arg VCS_REF="$(git rev-parse --short HEAD)" \
+             --build-arg VCS_URL="$(git config --get remote.origin.url)" \
+             --build-arg VCS_BRANCH="$(git rev-parse --abbrev-ref HEAD)" \
+             -t "$IMAGE_NAME" .
