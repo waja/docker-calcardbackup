@@ -9,7 +9,8 @@ ARG VCS_BRANCH
 ENV GIT_PROJECT=BernieO/calcardbackup
 
 # See http://label-schema.org/rc1/ and https://microbadger.com/labels
-LABEL org.label-schema.name="calcardbackup - ownCloud/Nextcloud backup tool" \
+LABEL maintainer="Jan Wagner <waja@cyconet.org>" \
+    org.label-schema.name="calcardbackup - ownCloud/Nextcloud backup tool" \
     org.label-schema.description="backup calendars and addressbooks from a local ownCloud/Nextcloud installation on Alpine Linux based container" \
     org.label-schema.vendor="Cyconet" \
     org.label-schema.schema-version="1.0" \
