@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD045 -->
 # Docker-Calcardbackup
 
 [![](https://images.microbadger.com/badges/version/waja/calcardbackup.svg)](https://hub.docker.com/r/waja/calcardbackup/)
