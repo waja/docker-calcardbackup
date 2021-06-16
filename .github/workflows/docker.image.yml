@@ -10,6 +10,8 @@ on:
       - '*.*.*-*'
   # Run tests for any PRs
   pull_request:
+  schedule:
+    - cron: '43 10 * * 4'
 
 env:
   IMAGE_NAME: calcardbackup
