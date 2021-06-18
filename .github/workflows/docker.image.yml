@@ -72,9 +72,7 @@ jobs:
     - name: Test the Docker image
       run: |
         CONTAINER_OUTPUT=$(docker run --rm -t ${IMAGE_NAME} /opt/calcardbackup/calcardbackup -h)
-        echo "${CONTAINER_OUTPUT}" 
         TEST_STRING=$(echo ${CONTAINER_OUTPUT} | grep -c 'START calcardbackup')
-        echo "${TEST_STRING}"
         if ! [ "${TEST_STRING}" = "1" ]; then exit 1; fi
     - name: Scan image with Container Scan
       uses: Azure/container-scan@v0
