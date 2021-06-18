@@ -123,6 +123,7 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
           file: ./Dockerfile
+          platforms: linux/amd64
 #          target: test
 
       - name: Build and push
@@ -133,7 +134,7 @@ jobs:
           context: .
           file: ./Dockerfile
 #          target: prod
-          platforms: linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64,linux/ppc64le,linux/s390x
+          platforms: linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64,linux/s390x #,linux/ppc64le
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ steps.prep.outputs.tags }}
