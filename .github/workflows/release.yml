@@ -124,6 +124,12 @@ jobs:
           context: .
           file: ./Dockerfile
           platforms: linux/amd64
+          build-args: |
+            BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            BUILD_VERSION="$(git describe --tags)"
+            VCS_REF="$(git rev-parse --short HEAD)"
+            VCS_URL="$(git config --get remote.origin.url)"
+            VCS_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 #          target: test
 
       - name: Build and push
@@ -140,6 +146,12 @@ jobs:
             ${{ steps.prep.outputs.tags }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
+          build-args: |
+            BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            BUILD_VERSION="$(git describe --tags)"
+            VCS_REF="$(git rev-parse --short HEAD)"
+            VCS_URL="$(git config --get remote.origin.url)"
+            VCS_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
