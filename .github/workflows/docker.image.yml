@@ -99,7 +99,7 @@ jobs:
             VCS_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
       - name: Inspect the Docker image
         run: |
-          docker buildx imagetools inspect localhost:5000/foobar/${{ env.IMAGE_NAME }}:latest
+          docker buildx imagetools inspect localhost:5000/foobar/${{ env.IMAGE_NAME }}
       - name: Test the Docker image
         run: |
           docker pull localhost:5000/foobar/${{ env.IMAGE_NAME }}
