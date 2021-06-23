@@ -1,7 +1,7 @@
 # https://iam.thunder.spb.ru/posts/2021/01/09/github-actions-and-pushing-container-to-multiple-registries
 # https://github.com/rpki-client/rpki-client-container/blob/master/.github/workflows/image.yml
 # https://docs.docker.com/ci-cd/github-actions/
-name: Publish Releases to Github Container Registry
+name: Publish Releases to Registries
 
 # When its time to do a release do a full cross platform build for all supported
 # architectures and push all of them to GHCR.
