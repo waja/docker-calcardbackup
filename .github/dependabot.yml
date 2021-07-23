@@ -5,6 +5,8 @@ updates:
     schedule:
       interval: daily
       time: "04:00"
+    reviewers:
+      - "waja"
     pull-request-branch-name:
       separator: "-"
     open-pull-requests-limit: 10
@@ -13,6 +15,8 @@ updates:
     schedule:
       interval: daily
       time: "04:00"
+    reviewers:
+      - "waja"
     pull-request-branch-name:
       separator: "-"
     open-pull-requests-limit: 10
