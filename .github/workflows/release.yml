@@ -68,7 +68,7 @@ jobs:
           if [ "$QUAY_USERNAME" != '' ] && [ "$QUAY_TOKEN" != '' ]; then
             TAGS="$TAGS,quay.io/$TAGS_INT"
           fi
-          echo ::set-output name=tags::${TAGS}
+          echo "::set-output name=tags::${TAGS}"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
