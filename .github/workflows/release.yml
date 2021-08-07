@@ -59,13 +59,13 @@ jobs:
           fi
           TAGS_INT="$TAGS"
           TAGS=""
-          if [ "$DOCKERHUB_USERNAME" != '' -a "$DOCKERHUB_TOKEN" != '' ]; then
+          if [ "$DOCKERHUB_USERNAME" != '' ] && [ "$DOCKERHUB_TOKEN" != '' ]; then
             TAGS="$TAGS_INT"
           fi
           if [ "$GITHUB_TOKEN" != '' ]; then
             TAGS="$TAGS,ghcr.io/$TAGS_INT"
           fi
-          if [ "$QUAY_USERNAME" != '' -a "$QUAY_TOKEN" != '' ]; then
+          if [ "$QUAY_USERNAME" != '' ] && [ "$QUAY_TOKEN" != '' ]; then
             TAGS="$TAGS,quay.io/$TAGS_INT"
           fi
           echo ::set-output name=tags::${TAGS}
