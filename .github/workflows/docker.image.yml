@@ -126,7 +126,7 @@ jobs:
           image: localhost:5000/foobar/${{ env.IMAGE_NAME }}
           acs-report-enable: true
       - name: Move reports
-        run: mkdir -p sarif-reports && cp *results.sarif sarif-reports/
+        run: mkdir -p sarif-reports && cp ./*results.sarif ./sarif-reports/
       - name: Upload Reports
         uses: github/codeql-action/upload-sarif@v1
         with:
