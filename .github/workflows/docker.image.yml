@@ -36,7 +36,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Lint Code Base
-        uses: github/super-linter@v4.5.1
+        uses: github/super-linter@v4.7.3
         env:
           DEFAULT_BRANCH: master
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -102,8 +102,9 @@ jobs:
           docker buildx imagetools inspect localhost:5000/foobar/${{ env.IMAGE_NAME }}
       - name: Test the Docker image
         run: |
-          CONTAINER_OUTPUT=$(docker run --rm -t localhost:5000/foobar/${{ env.IMAGE_NAME }} /opt/calcardbackup/calcardbackup -h)
-          TEST_STRING=$(echo ${CONTAINER_OUTPUT} | grep -c 'START calcardbackup')
+          CONTAINER_OUTPUT="$(docker run --rm -t localhost:5000/foobar/${{ env.IMAGE_NAME }} /opt/calcardbackup/calcardbackup -h)"
+          # shellcheck disable=SC2086
+          TEST_STRING="$(echo ${CONTAINER_OUTPUT} | grep -c 'START calcardbackup')"
           if ! [ "${TEST_STRING}" = "1" ]; then exit 1; fi
       - name: Scan image with Container Scan
         uses: Azure/container-scan@v0
@@ -126,7 +127,7 @@ jobs:
           image: localhost:5000/foobar/${{ env.IMAGE_NAME }}
           acs-report-enable: true
       - name: Move reports
-        run: mkdir -p sarif-reports && cp *results.sarif sarif-reports/
+        run: mkdir -p sarif-reports && cp ./*results.sarif ./sarif-reports/
       - name: Upload Reports
         uses: github/codeql-action/upload-sarif@v1
         with:
