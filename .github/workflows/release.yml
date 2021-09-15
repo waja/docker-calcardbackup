@@ -46,6 +46,7 @@ jobs:
             VERSION=${GITHUB_REF#refs/heads/}
           fi
           # running on schedule
+          # shellcheck disable=SC2050
           if [ "${{ github.event_name }}" = "schedule" ]; then
             VERSION=nightly
           fi
