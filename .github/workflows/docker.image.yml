@@ -126,6 +126,7 @@ jobs:
         with:
           image: localhost:5000/foobar/${{ env.IMAGE_NAME }}
           acs-report-enable: true
+          fail-build: false
       - name: Move reports
         run: mkdir -p sarif-reports && cp ./*results.sarif ./sarif-reports/
       - name: Upload Reports
