@@ -7,6 +7,7 @@ ARG VCS_REF
 ARG VCS_BRANCH
 
 ENV GIT_PROJECT=BernieO/calcardbackup
+ENV CALCARDBACKUP_VERSION 3.4.0
 
 # See http://label-schema.org/rc1/ and https://microbadger.com/labels
 LABEL maintainer="Jan Wagner <waja@cyconet.org>" \
@@ -33,7 +34,7 @@ WORKDIR /opt/calcardbackup
 # Download latest release
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 # hadolint ignore=DL3017,DL3018
-RUN curl -L "$(curl -s https://codeberg.org/api/v1/repos/$GIT_PROJECT/releases | jq -r ".[0].tarball_url")" | tar xz --strip=1 && \
+RUN curl -L "https://codeberg.org/BernieO/calcardbackup/archive/v$CALCARDBACKUP_VERSION.tar.gz" | tar xz --strip=1 && \
   # Remove build deps
   apk del build-dependencies && \
   # Install needed packages
