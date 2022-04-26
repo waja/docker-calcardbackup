@@ -56,7 +56,7 @@ jobs:
           # type: credscan,java
           # type: python
       - name: Upload report
-        uses: github/codeql-action/upload-sarif@v1
+        uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: reports
   build:
@@ -130,6 +130,6 @@ jobs:
       - name: Move reports
         run: mkdir -p sarif-reports && cp ./*results.sarif ./sarif-reports/
       - name: Upload Reports
-        uses: github/codeql-action/upload-sarif@v1
+        uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: 'sarif-reports'
