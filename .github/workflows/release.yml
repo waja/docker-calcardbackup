@@ -18,7 +18,12 @@ on:
     - cron: '43 3 * * *'
 
 jobs:
-  docker:
+  release-docker:
+    name: Release Docker images
+    strategy:
+      fail-fast: false
+      matrix:
+        platforms: [ "linux/386", "linux/amd64", "linux/arm/v6", "linux/arm/v7", "linux/arm64", "linux/s390x", "linux/ppc64le" ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -143,7 +148,7 @@ jobs:
           context: .
           file: ./Dockerfile
 #          target: prod
-          platforms: linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64,linux/s390x,linux/ppc64le
+          platforms: ${{ matrix.platforms }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ steps.prep.outputs.tags }}
