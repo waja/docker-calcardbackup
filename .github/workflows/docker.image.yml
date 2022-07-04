@@ -92,6 +92,8 @@ jobs:
           push: false
           outputs: type=docker,dest=/tmp/${{ env.IMAGE_NAME }}-${{ github.run_number }}.tar
           tags: localhost:5000/foobar/${{ env.IMAGE_NAME }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
           context: .
           file: ./Dockerfile
           platforms: linux/amd64
@@ -230,6 +232,18 @@ jobs:
             TAGS="$TAGS,quay.io/$TAGS_INT"
           fi
           echo "::set-output name=tags::${TAGS}"
+
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ env.IMAGE_NAME }}-${{ github.run_number }}
+          path: /tmp
+        if: ${{ matrix.platforms == 'linux/amd64' }}
+
+      - name: Load image from test job
+        run: |
+          docker load --input /tmp/${{ env.IMAGE_NAME }}-${{ github.run_number }}.tar
+        if: ${{ matrix.platforms == 'linux/amd64' }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
