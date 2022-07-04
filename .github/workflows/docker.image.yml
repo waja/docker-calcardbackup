@@ -19,6 +19,8 @@ env:
 jobs:
   codespell:
     name: codespell
+    strategy:
+      fail-fast: false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -31,6 +33,8 @@ jobs:
           check_hidden: true
   super-linter:
     name: super-linter
+    strategy:
+      fail-fast: false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -42,6 +46,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   shiftleft:
     name: shiftleft
+    strategy:
+      fail-fast: false
     runs-on: ubuntu-latest
     steps:
       - name: Perform ShiftLeft Scan
@@ -59,17 +65,14 @@ jobs:
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: reports
-  build:
+  test-build:
     needs:
       - codespell
       - super-linter
       - shiftleft
+    strategy:
+      fail-fast: false
     runs-on: ubuntu-latest
-    services:
-      registry:
-        image: registry:2
-        ports:
-          - 5000:5000
     steps:
       - uses: actions/checkout@v3
       - name: Set up QEMU
@@ -86,7 +89,8 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           builder: ${{ steps.buildx.outputs.name }}
-          push: true
+          push: false
+          outputs: type=docker,dest=/tmp/${{ env.IMAGE_NAME }}-${{ github.run_number }}.tar
           tags: localhost:5000/foobar/${{ env.IMAGE_NAME }}
           context: .
           file: ./Dockerfile
@@ -97,6 +101,38 @@ jobs:
             VCS_REF="$(git rev-parse --short HEAD)"
             VCS_URL="$(git config --get remote.origin.url)"
             VCS_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.IMAGE_NAME }}-${{ github.run_number }}
+          path: /tmp/${{ env.IMAGE_NAME }}-${{ github.run_number }}.tar
+  test:
+    needs:
+      - test-build
+    strategy:
+      fail-fast: false
+    runs-on: ubuntu-latest
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
+    steps:
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          driver-opts: network=host
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ env.IMAGE_NAME }}-${{ github.run_number }}
+          path: /tmp
+      - name: Load image and push to local registry
+        run: |
+          docker load --input /tmp/${{ env.IMAGE_NAME }}-${{ github.run_number }}.tar
+          docker image ls -a
+          docker push localhost:5000/foobar/${{ env.IMAGE_NAME }}
       - name: Inspect the Docker image
         run: |
           docker buildx imagetools inspect localhost:5000/foobar/${{ env.IMAGE_NAME }}
