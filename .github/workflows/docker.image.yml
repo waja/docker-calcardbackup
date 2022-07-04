@@ -110,9 +110,11 @@ jobs:
         uses: Azure/container-scan@v0
         env:
           DOCKER_CONTENT_TRUST: 1
+          #DOCKLE_NON_SSL: true
         with:
           image-name: localhost:5000/foobar/${{ env.IMAGE_NAME }}
           severity-threshold: HIGH
+          run-quality-checks: false
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
