@@ -19,6 +19,8 @@ env:
 jobs:
   codespell:
     name: codespell
+    strategy:
+      fail-fast: false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -31,17 +33,21 @@ jobs:
           check_hidden: true
   super-linter:
     name: super-linter
+    strategy:
+      fail-fast: false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
       - name: Lint Code Base
-        uses: github/super-linter@v4.9.2
+        uses: github/super-linter@v4.9.4
         env:
           DEFAULT_BRANCH: master
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   shiftleft:
     name: shiftleft
+    strategy:
+      fail-fast: false
     runs-on: ubuntu-latest
     steps:
       - name: Perform ShiftLeft Scan
@@ -59,17 +65,14 @@ jobs:
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: reports
-  build:
+  test-build:
     needs:
       - codespell
       - super-linter
       - shiftleft
+    strategy:
+      fail-fast: false
     runs-on: ubuntu-latest
-    services:
-      registry:
-        image: registry:2
-        ports:
-          - 5000:5000
     steps:
       - uses: actions/checkout@v3
       - name: Set up QEMU
@@ -86,8 +89,11 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           builder: ${{ steps.buildx.outputs.name }}
-          push: true
+          push: false
+          outputs: type=docker,dest=/tmp/${{ env.IMAGE_NAME }}-${{ github.run_number }}.tar
           tags: localhost:5000/foobar/${{ env.IMAGE_NAME }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
           context: .
           file: ./Dockerfile
           platforms: linux/amd64
@@ -97,6 +103,40 @@ jobs:
             VCS_REF="$(git rev-parse --short HEAD)"
             VCS_URL="$(git config --get remote.origin.url)"
             VCS_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.IMAGE_NAME }}-${{ github.run_number }}
+          path: /tmp/${{ env.IMAGE_NAME }}-${{ github.run_number }}.tar
+  test:
+    needs:
+      - test-build
+    strategy:
+      fail-fast: false
+    runs-on: ubuntu-latest
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          driver-opts: network=host
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ env.IMAGE_NAME }}-${{ github.run_number }}
+          path: /tmp
+      - name: Load image and push to local registry
+        run: |
+          docker load --input /tmp/${{ env.IMAGE_NAME }}-${{ github.run_number }}.tar
+          docker image ls -a
+          docker push localhost:5000/foobar/${{ env.IMAGE_NAME }}
       - name: Inspect the Docker image
         run: |
           docker buildx imagetools inspect localhost:5000/foobar/${{ env.IMAGE_NAME }}
@@ -110,9 +150,11 @@ jobs:
         uses: Azure/container-scan@v0
         env:
           DOCKER_CONTENT_TRUST: 1
+          #DOCKLE_NON_SSL: true
         with:
           image-name: localhost:5000/foobar/${{ env.IMAGE_NAME }}
           severity-threshold: HIGH
+          run-quality-checks: false
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
@@ -133,3 +175,161 @@ jobs:
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: 'sarif-reports'
+  release-docker:
+    name: Release Docker images
+    needs:
+      - test
+    strategy:
+      fail-fast: false
+      matrix:
+        platforms: [ "linux/386", "linux/amd64", "linux/arm/v6", "linux/arm/v7", "linux/arm64"]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Prepare
+        id: prep
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
+          QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
+        run: |
+          USER=${GITHUB_ACTOR}
+          IMAGE_NAME=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}' | sed  s/docker-//)
+          DOCKER_IMAGE=${USER}/${IMAGE_NAME}
+          VERSION=edge
+          # running on a tag
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          fi
+          # running on a branch
+          if [[ $GITHUB_REF == refs/heads/* ]]; then
+            VERSION=${GITHUB_REF#refs/heads/}
+          fi
+          # running on schedule
+          # shellcheck disable=SC2050
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            VERSION=nightly
+          fi
+          # running on master branch
+          if [ $VERSION = "master" ]; then
+            VERSION=latest
+          fi
+          TAGS="${DOCKER_IMAGE}:${VERSION}"
+          if [[ $VERSION =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\-[0-9]{1,3}$ ]]; then
+            TAGS="$TAGS,${DOCKER_IMAGE}:latest"
+          fi
+          TAGS_INT="$TAGS"
+          TAGS=""
+          if [ "$DOCKERHUB_USERNAME" != '' ] && [ "$DOCKERHUB_TOKEN" != '' ]; then
+            TAGS="$TAGS_INT"
+          fi
+          if [ "$GITHUB_TOKEN" != '' ]; then
+            TAGS="$TAGS,ghcr.io/$TAGS_INT"
+          fi
+          if [ "$QUAY_USERNAME" != '' ] && [ "$QUAY_TOKEN" != '' ]; then
+            TAGS="$TAGS,quay.io/$TAGS_INT"
+          fi
+          echo "::set-output name=tags::${TAGS}"
+
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ env.IMAGE_NAME }}-${{ github.run_number }}
+          path: /tmp
+        if: ${{ matrix.platforms == 'linux/amd64' }}
+
+      - name: Load image from test job
+        run: |
+          docker load --input /tmp/${{ env.IMAGE_NAME }}-${{ github.run_number }}.tar
+        if: ${{ matrix.platforms == 'linux/amd64' }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+        with:
+          platforms: all
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Login to ghcr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: ${{ github.event_name != 'pull_request' && env.GITHUB_TOKEN != '' }}
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${USER}
+          password: ${{ env.GITHUB_TOKEN }}
+
+      - name: Login to DockerHub Container Registry
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        if: ${{ github.event_name != 'pull_request' && env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != '' }}
+        uses: docker/login-action@v2
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
+
+      - name: Login to Quay Container Registry
+        env:
+          QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
+          QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
+        if: ${{ github.event_name != 'pull_request' && env.QUAY_USERNAME != '' && env.QUAY_TOKEN != '' }}
+        uses: docker/login-action@v2
+        with:
+          registry: quay.io
+          username: ${{ env.QUAY_USERNAME }}
+          password: ${{ env.QUAY_TOKEN }}
+
+      - name: Test
+        id: docker_test
+        uses: docker/build-push-action@v3
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          build-args: |
+            BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            BUILD_VERSION="$(git describe --tags)"
+            VCS_REF="$(git rev-parse --short HEAD)"
+            VCS_URL="$(git config --get remote.origin.url)"
+            VCS_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+
+      - name: Build and push
+        id: docker_build
+        uses: docker/build-push-action@v3
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          context: .
+          file: ./Dockerfile
+          platforms: ${{ matrix.platforms }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ steps.prep.outputs.tags }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
+          build-args: |
+            BUILD_DATE="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            BUILD_VERSION="$(git describe --tags)"
+            VCS_REF="$(git rev-parse --short HEAD)"
+            VCS_URL="$(git config --get remote.origin.url)"
+            VCS_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+
+      - name: Image digest
+        run: echo ${{ steps.docker_build.outputs.digest }}
+
