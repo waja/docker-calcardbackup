@@ -181,8 +181,6 @@ jobs:
       - test
     strategy:
       fail-fast: false
-      matrix:
-        platforms: [ "linux/386", "linux/amd64", "linux/arm/v6", "linux/arm/v7", "linux/arm64"]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -240,12 +238,10 @@ jobs:
         with:
           name: ${{ env.IMAGE_NAME }}-${{ github.run_number }}
           path: /tmp
-        if: ${{ matrix.platforms == 'linux/amd64' }}
 
       - name: Load image from test job
         run: |
           docker load --input /tmp/${{ env.IMAGE_NAME }}-${{ github.run_number }}.tar
-        if: ${{ matrix.platforms == 'linux/amd64' }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -317,7 +313,7 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           context: .
           file: ./Dockerfile
-          platforms: ${{ matrix.platforms }}
+          platforms: linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ steps.prep.outputs.tags }}
