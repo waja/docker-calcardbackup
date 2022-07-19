@@ -1,0 +1,4 @@
+# https://github.com/Azure/container-scan#ignoring-vulnerabilities
+general:
+  vulnerabilities:
+    - CVE-2022-30065
