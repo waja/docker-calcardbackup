@@ -195,7 +195,7 @@ jobs:
           QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
           QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
         run: |
-          USER=${GITHUB_ACTOR}
+          USER=${GITHUB_REPOSITORY_OWNER}
           IMAGE_NAME=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}' | sed  s/docker-//)
           DOCKER_IMAGE=${USER}/${IMAGE_NAME}
           VERSION=edge
