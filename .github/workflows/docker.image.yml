@@ -232,7 +232,7 @@ jobs:
           if [ "$QUAY_USERNAME" != '' ] && [ "$QUAY_TOKEN" != '' ]; then
             TAGS="$TAGS,quay.io/$TAGS_INT"
           fi
-          echo "::set-output name=tags::${TAGS}"
+          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
 
       - name: Download artifact
         uses: actions/download-artifact@v3
