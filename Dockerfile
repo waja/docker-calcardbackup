@@ -38,7 +38,7 @@ RUN curl -L "https://codeberg.org/BernieO/calcardbackup/archive/v$CALCARDBACKUP_
   # Remove build deps
   apk del build-dependencies && \
   # Install needed packages
-  apk --no-cache add bash curl findutils mysql-client postgresql-client sqlite gzip zip && \
+  apk --no-cache add bash curl findutils mysql-client postgresql-client sqlite gzip zip gnupg && \
   # Create backup dir and make our start script executable
   mkdir /backup
 
