@@ -78,7 +78,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
         with:
           platforms: linux/amd64
       - name: Set up Docker Buildx
@@ -257,7 +257,7 @@ jobs:
           docker load --input /tmp/${{ env.IMAGE_NAME }}-${{ github.run_number }}.tar
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
         with:
           platforms: all
 
