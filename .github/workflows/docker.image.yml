@@ -106,7 +106,7 @@ jobs:
             VCS_URL="$(git config --get remote.origin.url)"
             VCS_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.IMAGE_NAME }}-${{ github.run_number }}
           path: /tmp/${{ env.IMAGE_NAME }}-${{ github.run_number }}.tar
