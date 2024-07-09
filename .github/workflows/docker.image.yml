@@ -152,15 +152,15 @@ jobs:
           # shellcheck disable=SC2086
           TEST_STRING="$(echo ${CONTAINER_OUTPUT} | grep -c 'START calcardbackup')"
           if ! [ "${TEST_STRING}" = "1" ]; then exit 1; fi
-      - name: Scan image with Container Scan
-        uses: Azure/container-scan@v0
-        env:
-          DOCKER_CONTENT_TRUST: 1
-          #DOCKLE_NON_SSL: true
+      - name: Run dockle container image linter
+        uses: goodwithtech/dockle-action@v0.1.2
         with:
-          image-name: localhost:5000/foobar/${{ env.IMAGE_NAME }}
-          severity-threshold: HIGH
-          run-quality-checks: false
+          image: 'registry:5000/foobar/${{ env.IMAGE_NAME }}'
+          insecure: true
+          format: 'list'
+          exit-code: '1'
+          exit-level: 'warn'
+          ignore: 'CIS-DI-0001,CIS-DI-0010,DKL-DI-0006'
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
