@@ -157,7 +157,7 @@ jobs:
         with:
           image: 'registry:5000/foobar/${{ env.IMAGE_NAME }}'
           insecure: true
-          format: 'list'
+          format: 'sarif'
           exit-code: '1'
           exit-level: 'warn'
           ignore: 'CIS-DI-0001,CIS-DI-0010,DKL-DI-0006'
