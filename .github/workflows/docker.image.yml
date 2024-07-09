@@ -116,6 +116,7 @@ jobs:
           name: ${{ env.IMAGE_NAME }}-${{ github.run_number }}
           path: /tmp/${{ env.IMAGE_NAME }}-${{ github.run_number }}.tar
   test:
+    name: Run test
     needs:
       - test-build
     strategy:
@@ -146,6 +147,29 @@ jobs:
           # shellcheck disable=SC2086
           TEST_STRING="$(echo ${CONTAINER_OUTPUT} | grep -c 'START calcardbackup')"
           if ! [ "${TEST_STRING}" = "1" ]; then exit 1; fi
+  dockle:
+    name: Run Dockle tests
+    needs:
+      - test-build
+    strategy:
+      fail-fast: false
+    runs-on: ubuntu-latest
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.IMAGE_NAME }}-${{ github.run_number }}
+          path: /tmp
+      - name: Load image and push to local registry
+        run: |
+          docker load --input /tmp/${{ env.IMAGE_NAME }}-${{ github.run_number }}.tar
+          docker image ls -a
+          docker push localhost:5000/foobar/${{ env.IMAGE_NAME }}
       - name: Run dockle container image linter
         uses: goodwithtech/dockle-action@v0.1.2
         with:
@@ -155,6 +179,34 @@ jobs:
           exit-code: '1'
           exit-level: 'warn'
           ignore: 'CIS-DI-0001,CIS-DI-0010,DKL-DI-0006'
+          output: sarif-reports
+      - name: Upload Reports
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'sarif-reports'
+  trivy:
+    name: Run Trivy tests
+    needs:
+      - test-build
+    strategy:
+      fail-fast: false
+    runs-on: ubuntu-latest
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.IMAGE_NAME }}-${{ github.run_number }}
+          path: /tmp
+      - name: Load image and push to local registry
+        run: |
+          docker load --input /tmp/${{ env.IMAGE_NAME }}-${{ github.run_number }}.tar
+          docker image ls -a
+          docker push localhost:5000/foobar/${{ env.IMAGE_NAME }}
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
@@ -163,6 +215,33 @@ jobs:
           template: '@/contrib/sarif.tpl'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
+      - name: Upload Reports
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+  anchore:
+    name: Run Anchore tests
+    needs:
+      - test-build
+    strategy:
+      fail-fast: false
+    runs-on: ubuntu-latest
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.IMAGE_NAME }}-${{ github.run_number }}
+          path: /tmp
+      - name: Load image and push to local registry
+        run: |
+          docker load --input /tmp/${{ env.IMAGE_NAME }}-${{ github.run_number }}.tar
+          docker image ls -a
+          docker push localhost:5000/foobar/${{ env.IMAGE_NAME }}
       - name: Run the Anchore scan action itself with GitHub Advanced Security code scanning integration enabled
         uses: anchore/scan-action@main
         with:
@@ -179,6 +258,9 @@ jobs:
     name: Release Docker images
     needs:
       - test
+      - dockle
+      - trivy
+      - anchore
     strategy:
       fail-fast: false
     runs-on: ubuntu-latest
