@@ -1,6 +1,7 @@
 {
   "threshold": 4,
   "ignore": [
-    "**/.github/workflows/docker.image.yml"
+    "**/.github/workflows/docker.image.yml",
+    "**/docker-compose-*-example.yml"
   ]
 }
