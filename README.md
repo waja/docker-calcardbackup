@@ -13,11 +13,15 @@
 
 ## Usage
 
+<!-- textlint-disable -->
+
 docker container run -d \
- --link mysql
+--link mysql
 --volume /path/to/my/backup/folder:/backup
 --volume /path/to/my/nextcloud/config:/nextcloud/config
 waja/calcardbackup
+
+<!-- textlint-enable -->
 
 ## docker compose
 
