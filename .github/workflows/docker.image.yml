@@ -171,7 +171,7 @@ jobs:
           docker image ls -a
           docker push localhost:5000/foobar/${{ env.IMAGE_NAME }}
       - name: Run dockle container image linter
-        uses: goodwithtech/dockle-action@v0.1.2
+        uses: goodwithtech/dockle-action@v0.4.15
         with:
           image: "registry:5000/foobar/${{ env.IMAGE_NAME }}"
           insecure: true
