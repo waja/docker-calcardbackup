@@ -18,7 +18,7 @@ if [ -n "${INIT_BACKUP}" ]; then
 			sleep 1
 		done
 	fi
-	${BACKUP_CMD}  >> ${BACKUP_LOG} 2>&1
+	${BACKUP_CMD}  >>${BACKUP_LOG} 2>&1
 fi
 
 echo "${CRON_TIME:=5 4 * * *} ${BACKUP_CMD} >> ${BACKUP_LOG} 2>&1" >/crontab.conf
