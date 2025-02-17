@@ -1,6 +1,6 @@
 # checkov:skip=CKV_DOCKER_2: no healthcheck (yet)
 # checkov:skip=CKV_DOCKER_3: no user (yet)
-FROM alpine:3.21.2
+FROM alpine:3.21.3
 
 ARG BUILD_DATE
 ARG BUILD_VERSION
