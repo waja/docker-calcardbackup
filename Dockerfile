@@ -9,7 +9,7 @@ ARG VCS_REF
 ARG VCS_BRANCH
 
 ENV GIT_PROJECT=BernieO/calcardbackup
-ENV CALCARDBACKUP_VERSION 8.0.2
+ENV CALCARDBACKUP_VERSION 8.0.3
 
 # See http://label-schema.org/rc1/ and https://microbadger.com/labels
 LABEL maintainer="Jan Wagner <waja@cyconet.org>" \
