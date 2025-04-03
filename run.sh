@@ -4,6 +4,14 @@ BACKUP_LOG="/backup.log"
 touch ${BACKUP_LOG}
 tail -F ${BACKUP_LOG} &
 
+if [ "${MARIADB_SSL_SKIP:=false}" == "true" ]; then
+	cat >/etc/my.cnf.d/mariadb-client.cnf <<EOF
+[client]
+skip-ssl = true
+EOF
+	CALCARD_OPTS="${CALCARD_OPT:=-i} --read-mysql-optionfiles"
+fi
+
 if [ -n "${INIT_BACKUP}" ]; then
 	echo "=> Create a backup on the startup"
 	if [ -n "${NC_HOST}" ]; then
