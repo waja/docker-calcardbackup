@@ -1,9 +1,4 @@
 #!/bin/bash
-BACKUP_CMD="/opt/calcardbackup/calcardbackup ${NC_DIR:=/nextcloud/} --output ${BACKUP_DIR:=/backup/} ${CALCARD_OPTS:=-i}"
-BACKUP_LOG="/backup.log"
-touch ${BACKUP_LOG}
-tail -F ${BACKUP_LOG} &
-
 if [ "${MARIADB_SSL_SKIP:=false}" == "true" ]; then
 	cat >/etc/my.cnf.d/mariadb-client.cnf <<EOF
 [client]
@@ -11,6 +6,10 @@ skip-ssl = true
 EOF
 	CALCARD_OPTS="${CALCARD_OPT:=-i} --read-mysql-optionfiles"
 fi
+BACKUP_CMD="/opt/calcardbackup/calcardbackup ${NC_DIR:=/nextcloud/} --output ${BACKUP_DIR:=/backup/} ${CALCARD_OPTS:=-i}"
+BACKUP_LOG="/backup.log"
+touch ${BACKUP_LOG}
+tail -F ${BACKUP_LOG} &
 
 if [ -n "${INIT_BACKUP}" ]; then
 	echo "=> Create a backup on the startup"
