@@ -62,7 +62,7 @@ services:
       - /etc/timezone:/etc/timezone:ro
 
   nextcloud-redis:
-    image: redis:5.0-alpine
+    image: redis:8.0-alpine
     labels:
       com.centurylinklabs.watchtower.enable: "true"
     restart: unless-stopped
