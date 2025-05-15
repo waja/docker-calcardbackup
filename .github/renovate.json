@@ -5,6 +5,11 @@
     {
       "matchFileNames": [".github/workflows/**"],
       "pinDigests": false
+    },
+    {
+      "matchManagers": ["regex"],
+      "matchPaths": ["^.*-example\\.yml$"],
+      "pinDigests": false
     }
   ]
 }
