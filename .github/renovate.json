@@ -2,7 +2,10 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended", "docker:pinDigests"],
   "packageRules": [
-    {"matchFileNames": [".github/workflows/**"], "pinDigests": false},
-    {"matchFileNames": ["docker-compose-example.yml","docker-compose-complex-example.yml"], "pinDigests": false}
+    { "matchFileNames": [".github/workflows/**"], "pinDigests": false },
+    {
+      "matchFileNames": ["**/docker-compose*-example.yml"],
+      "pinDigests": false
+    }
   ]
 }
