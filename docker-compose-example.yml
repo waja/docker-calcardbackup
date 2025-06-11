@@ -13,7 +13,7 @@ services:
       - /etc/timezone:/etc/timezone:ro
 
   nextcloud-db:
-    image: mariadb:11.7
+    image: mariadb:11.8
     environment:
       - MYSQL_ROOT_PASSWORD=YOUSHOULDHAVECHANGEDTHATTOO
       - MYSQL_DATABASE=nextcloud
