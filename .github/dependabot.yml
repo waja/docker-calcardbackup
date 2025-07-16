@@ -15,7 +15,6 @@ updates:
     schedule:
       interval: daily
       time: "04:00"
-    target-branch: "master"
     reviewers:
       - "waja"
     pull-request-branch-name:
