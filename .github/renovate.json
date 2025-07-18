@@ -13,17 +13,7 @@
       "matchUpdateTypes": ["patch"],
       "matchCurrentVersion": "!/^0/",
       "automerge": true,
-      "automergeType": "pr",
-      "requiredStatusChecks": [
-        "codespell",
-        "super-linter",
-        "shiftleft",
-        "test-build",
-        "Run test",
-        "Run Dockle tests",
-        "Run Trivy tests",
-        "Run Anchore tests"
-      ]
+      "automergeType": "pr"
     },
     {
       "description": "Automerge digest updates",
