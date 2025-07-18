@@ -23,7 +23,7 @@ waja/calcardbackup
 
 <!-- textlint-enable -->
 
-## docker compose
+## Docker compose
 
 There is a [`docker-compose-example.yml`](https://raw.githubusercontent.com/waja/docker-calcardbackup/development/docker-compose-example.yml) and a [`docker-compose-complex-example.yml`](https://raw.githubusercontent.com/waja/docker-calcardbackup/development/docker-compose-complex-example.yml) available. Feel free to have a look if there is something you can use.
 
