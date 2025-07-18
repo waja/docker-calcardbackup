@@ -25,16 +25,16 @@
     {
       "description": "Automerge some GitHub Actions (Lint/Prettier/Scanner)",
       "matchFileNames": [".github/workflows/**"],
+      "matchManagers": ["github-actions"],
+      "automerge": true,
+      "automergeType": "pr",
       "matchPackagePatterns": [
         ".*codespell.*",
         ".*lint.*",
         ".*dockle.*",
         ".*trivy.*",
         ".*anchore.*"
-      ],
-      "matchManagers": ["github-actions"],
-      "automerge": true,
-      "automergeType": "pr"
+      ]
     }
   ]
 }
