@@ -27,16 +27,7 @@
       "matchFileNames": [".github/workflows/**"],
       "matchManagers": ["github-actions"],
       "automerge": true,
-      "automergeType": "pr",
-      "matchPackageNames": [
-        "/.*codespell.*/",
-        "/.*lint.*/",
-        "/.*dockle.*/",
-        "/.*trivy.*/",
-        "/.*anchore.*/",
-        "/.*scan.*/",
-        "/.*codeql.*/"
-      ]
+      "automergeType": "pr"
     }
   ]
 }
