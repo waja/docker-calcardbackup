@@ -230,7 +230,7 @@ jobs:
           docker image ls -a
           docker push localhost:5000/foobar/${{ env.IMAGE_NAME }}
       - name: Run the Anchore scan action itself with GitHub Advanced Security code scanning integration enabled
-        uses: anchore/scan-action@v7.3.1
+        uses: anchore/scan-action@v7.3.2
         with:
           image: localhost:5000/foobar/${{ env.IMAGE_NAME }}
           acs-report-enable: true
