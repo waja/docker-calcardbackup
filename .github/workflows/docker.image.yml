@@ -130,10 +130,17 @@ jobs:
           docker buildx imagetools inspect localhost:5000/foobar/${{ env.IMAGE_NAME }}
       - name: Test the Docker image
         run: |
-          CONTAINER_OUTPUT="$(docker run --rm -t localhost:5000/foobar/${{ env.IMAGE_NAME }} /opt/calcardbackup/calcardbackup -h)"
-          # shellcheck disable=SC2086
-          TEST_STRING="$(echo ${CONTAINER_OUTPUT} | grep -c 'START calcardbackup')"
-          if ! [ "${TEST_STRING}" = "1" ]; then exit 1; fi
+          CONTAINER_OUTPUT=$(docker run --rm localhost:5000/foobar/${{ env.IMAGE_NAME }} /opt/calcardbackup/calcardbackup -h)
+          echo "Container output: $CONTAINER_OUTPUT"
+          echo "Container output (quoted): '$CONTAINER_OUTPUT'"
+
+          TEST_STRING=$(echo "${CONTAINER_OUTPUT}" | grep 'START calcardbackup' | head -1 | cut -d' ' -f11)
+          echo "Extracted test string: '$TEST_STRING'"
+
+          if ! [ "${TEST_STRING}" = "calcardbackup" ]; then
+            echo "ERROR: Expected 'calcardbackup' but got '$TEST_STRING'"
+            exit 1
+          fi
   dockle:
     name: Run Dockle tests
     needs:
