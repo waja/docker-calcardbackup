@@ -134,7 +134,7 @@ jobs:
           echo "Container output: $CONTAINER_OUTPUT"
           echo "Container output (quoted): '$CONTAINER_OUTPUT'"
 
-          TEST_STRING=$(echo "${CONTAINER_OUTPUT}" | grep 'START calcardbackup' | head -1 | cut -d' ' -f11)
+          TEST_STRING=$(echo "${CONTAINER_OUTPUT}" | grep 'START calcardbackup' | head -1 | sed "s/.*START //" | cut -d' ' -f1)
           echo "Extracted test string: '$TEST_STRING'"
 
           if ! [ "${TEST_STRING}" = "calcardbackup" ]; then
