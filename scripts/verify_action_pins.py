@@ -56,18 +56,60 @@ def api_json(path: str) -> dict:
 
 def parse_action_reference(line: str) -> tuple[str, str, str] | None:
     """Parse a pinned action; explicitly ignore local and Docker container actions."""
-    if "uses:" not in line:
+    match = re.match(r"^\s*(?:-\s*)?uses:\s*(.*?)\s*$", line)
+    if match is None:
         return None
-    reference = line.split("uses:", 1)[1].strip()
+
+    reference = match.group(1).strip()
+    if reference.startswith(('"', "'")):
+        quote = reference[0]
+        end = reference.find(quote, 1)
+        if end < 0 or (
+            reference[end + 1 :].strip()
+            and not reference[end + 1 :].lstrip().startswith("#")
+        ):
+            raise ValueError("malformed quoted action reference")
+        reference = reference[1:end]
+    else:
+        reference = reference.split(" #", 1)[0].strip()
+
     if reference.startswith(("./", "docker://")):
         return None
-    match = ACTION.match(line)
-    if match is None:
+    action_match = ACTION.match(f"uses: {reference}")
+    if action_match is None:
         raise ValueError("action must use a full SHA and include its version comment")
-    repository, sha, version = match.groups()
+    repository, sha, version = action_match.groups()
     if repository not in ALLOWED_REPOSITORIES:
         raise ValueError(f"unexpected action repository: {repository}")
     return repository, sha, version
+
+
+def workflow_action_lines(lines):
+    """Yield only uses keys belonging to workflow step mappings."""
+    in_steps = False
+    item_indent = None
+    for line_number, line in enumerate(lines, 1):
+        stripped = line.lstrip()
+        indent = len(line) - len(stripped)
+        if not stripped or stripped.startswith("#"):
+            continue
+        if re.match(r"^steps:\s*(?:#.*)?$", stripped):
+            in_steps = True
+            item_indent = indent + 2
+            continue
+        if not in_steps:
+            continue
+        if indent <= item_indent - 2:
+            in_steps = False
+            item_indent = None
+            continue
+        if indent == item_indent and stripped.startswith("- "):
+            value = stripped[2:].strip()
+            if value.startswith("uses:"):
+                yield line_number, value
+            continue
+        if indent == item_indent + 2 and stripped.startswith("uses:"):
+            yield line_number, stripped
 
 
 def verify_pin(repository: str, sha: str, version: str) -> str | None:
@@ -89,13 +131,15 @@ def tag_commit(repository: str, version: str) -> str | None:
     encoded_repository = urllib.parse.quote(repository, safe="/")
     ref = api_json(f"repos/{encoded_repository}/git/ref/tags/{encoded_tag}")
     target = ref.get("object", {})
-    if target.get("type") == "commit":
-        return target.get("sha")
-    if target.get("type") != "tag" or not target.get("sha"):
-        return None
-    annotated = api_json(f"repos/{encoded_repository}/git/tags/{target['sha']}")
-    commit = annotated.get("object", {})
-    return commit.get("sha") if commit.get("type") == "commit" else None
+    seen: set[str] = set()
+    while target.get("type") == "tag" and target.get("sha"):
+        tag_sha = target["sha"]
+        if tag_sha in seen:
+            raise RuntimeError(f"annotated tag cycle detected in {repository} v{version}")
+        seen.add(tag_sha)
+        annotated = api_json(f"repos/{encoded_repository}/git/tags/{tag_sha}")
+        target = annotated.get("object", {})
+    return target.get("sha") if target.get("type") == "commit" else None
 
 
 def main() -> int:
@@ -103,9 +147,7 @@ def main() -> int:
     failures: list[str] = []
     checked = 0
     for path in sorted(Path(".github/workflows").glob("*.y*ml")):
-        for line_number, line in enumerate(path.read_text().splitlines(), 1):
-            if "uses:" not in line:
-                continue
+        for line_number, line in workflow_action_lines(path.read_text().splitlines()):
             try:
                 parsed = parse_action_reference(line)
             except ValueError as error:
