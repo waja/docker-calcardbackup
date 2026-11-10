@@ -153,7 +153,7 @@ def workflow_action_lines(workflow_text: str):
                 reference = value.value
                 raw_line = raw_lines[line_number - 1]
                 comment = re.search(
-                    r"\\s+#\\s*v[0-9A-Za-z][0-9A-Za-z._+-]*\\s*$",
+                    r"\s+#\s*v[0-9A-Za-z][0-9A-Za-z._+-]*\s*$",
                     raw_line,
                 )
                 if comment and "#" not in reference:
