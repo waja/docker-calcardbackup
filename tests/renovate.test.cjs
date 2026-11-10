@@ -97,7 +97,7 @@ for (const [name, content, expected] of [
   ['example in another instruction', 'RUN echo ENV CALCARDBACKUP_VERSION 99.0.0\n', []],
   ['empty file', '', []],
 ]) {
-  test('version extraction: ' + name, () => {
+  test(`version extraction: ${name}`, () => {
     assert.deepEqual(extractVersions(content), expected);
   });
 }
@@ -121,7 +121,7 @@ test('ignores comments and malformed declarations alongside an active version', 
 });
 
 for (const ending of ['\n', '\r\n']) {
-  test('ignores continued RUN examples with ' + JSON.stringify(ending), () => {
+  test(`ignores continued RUN examples with ${JSON.stringify(ending)}`, () => {
     const content = [
       'RUN echo example \\',
       '# comment inside continuation',
@@ -149,7 +149,7 @@ for (const [tag, expected] of [
   ['release-v11.2.0', undefined],
   ['', undefined],
 ]) {
-  test('upstream tag prefix extraction: ' + JSON.stringify(tag), () => {
+  test(`upstream tag prefix extraction: ${JSON.stringify(tag)}`, () => {
     const match = new RegExp(manager.extractVersionTemplate).exec(tag);
     assert.equal(match?.groups?.version, expected);
   });
