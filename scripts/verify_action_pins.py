@@ -89,9 +89,9 @@ def api_json(path: str) -> dict:
     raise RuntimeError(f"GitHub API request exhausted retries for {path}")
 
 
-def parse_action_reference(line: str) -> tuple[str, str, str] | None:
-    """Parse a pinned action; explicitly ignore local and Docker container actions."""
-    match = re.match(r"^\s*(?:-\s*)?uses:\s*(.*?)\s*$", line)
+def _normalize_action_reference(line: str) -> str | None:
+    """Extract and normalize a workflow uses scalar."""
+    match = re.match(r"^\\s*(?:-\\s*)?uses:\\s*(.*?)\\s*$", line)
     if match is None:
         return None
 
@@ -103,10 +103,19 @@ def parse_action_reference(line: str) -> tuple[str, str, str] | None:
         if end < 0 or (trailing and not trailing.startswith("#")):
             raise ValueError("malformed quoted action reference")
         reference = reference[1:end] + (f" {trailing}" if trailing else "")
+    return reference
+
+
+def parse_action_reference(line: str) -> tuple[str, str, str] | None:
+    """Parse a pinned action; explicitly ignore local and Docker container actions."""
+    reference = _normalize_action_reference(line)
+    if reference is None:
+        return None
     if reference.startswith("./"):
         return None
     if reference.startswith("docker://"):
         raise ValueError("docker:// actions are not verifiable; use an immutable OCI digest")
+
     action_match = ACTION.match(f"uses: {reference}")
     if action_match is None:
         raise ValueError("action must use a full SHA and include its version comment")
