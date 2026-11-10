@@ -273,10 +273,10 @@ test('ShiftLeft report uploads are non-blocking and rerun-safe', () => {
     'utf8',
   );
   const upload = workflow.match(
-    /- name: Save scan reports\n([\s\S]*?)(?=\n  shiftleft-report:)/,
+    /- name: Save scan reports\n([\s\S]*?)(?=\n {2}shiftleft-report:)/,
   )?.[1];
   const download = workflow.match(
-    /  shiftleft-report:\n([\s\S]*?)(?=\n  test-build:)/,
+    / {2}shiftleft-report:\n([\s\S]*?)(?=\n {2}test-build:)/,
   )?.[1];
   assert.ok(upload, 'ShiftLeft report upload must exist');
   assert.ok(download, 'ShiftLeft report download must exist');
