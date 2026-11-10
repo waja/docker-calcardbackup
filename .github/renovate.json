@@ -42,7 +42,13 @@
       "description": "Automerge linting and security scanner GitHub Actions",
       "matchFileNames": [".github/workflows/**"],
       "matchManagers": ["github-actions"],
-      "matchPackageNames": ["super-linter/super-linter", "ShiftLeftSecurity/scan-action", "goodwithtech/dockle-action", "aquasecurity/trivy-action", "anchore/scan-action"],
+      "matchPackageNames": [
+        "super-linter/super-linter",
+        "ShiftLeftSecurity/scan-action",
+        "goodwithtech/dockle-action",
+        "aquasecurity/trivy-action",
+        "anchore/scan-action"
+      ],
       "automerge": true,
       "automergeType": "pr"
     }
