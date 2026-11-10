@@ -1,7 +1,6 @@
 name: Docker Image CI
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - $default-branch
@@ -335,7 +334,7 @@ jobs:
     if: github.event_name == 'push' || github.event_name == 'schedule'
     concurrency:
       group: docker-release-${{ github.ref }}
-      cancel-in-progress: true
+      cancel-in-progress: false
     needs:
       - test
       - dockle
@@ -355,7 +354,7 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          if [[ ! "$RELEASE_TAG" =~ ^[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}-[0-9]{1,3}$ ]]; then
+          if [[ ! "$RELEASE_TAG" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}-[0-9]{1,3}$ ]]; then
             echo "Refusing to publish non-release tag: $RELEASE_TAG" >&2
             exit 1
           fi
