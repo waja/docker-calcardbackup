@@ -31,9 +31,6 @@ jobs:
         with:
           node-version: 24
       - run: node --test tests/renovate.test.cjs
-      - name: Install verifier dependency
-        run: python3 -m pip install PyYAML==6.0.2
-      - run: python3 -m unittest discover -s tests -p 'test_*.py'
   renovate-live-validation:
     name: Validate live Renovate Codeberg datasource
     runs-on: ubuntu-latest
@@ -55,8 +52,8 @@ jobs:
         run: bash tests/test_validate_renovate.sh
       - name: Validate live Codeberg lookup
         run: bash .github/scripts/validate-renovate.sh
-  verify-action-pins-live:
-    name: Verify pinned GitHub Actions against release tags
+  verify-action-pins:
+    name: Verify pinned GitHub Actions
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -64,12 +61,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Install verifier dependency
-        run: python3 -m pip install PyYAML==6.0.2
-      - name: Verify action SHA pins
-        run: python3 scripts/verify_action_pins.py
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify SHA pins and version comments
+        uses: suzuki-shunsuke/pinact-action@28aeb220eb3252ad0d4422dd5d9368e925acbd8d # v1.3.0
+        with:
+          skip_push: "true"
+          verify: "true"
   super-linter:
     name: super-linter
     permissions:
