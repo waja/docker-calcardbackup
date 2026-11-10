@@ -18,32 +18,48 @@
   ],
   "packageRules": [
     {
-      "matchFileNames": [".github/workflows/**"],
+      "matchFileNames": [
+        ".github/workflows/**"
+      ],
       "pinDigests": false
     },
     {
-      "matchFileNames": ["**/docker-compose*-example.yml"],
+      "matchFileNames": [
+        "**/docker-compose*-example.yml"
+      ],
       "pinDigests": false
     },
     {
       "description": "Automerge non-major Dockerfile updates",
-      "matchManagers": ["dockerfile"],
-      "matchUpdateTypes": ["patch"],
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "matchUpdateTypes": [
+        "patch"
+      ],
       "matchCurrentVersion": "!/^0/",
       "automerge": true,
       "automergeType": "pr"
     },
     {
       "description": "Automerge Dockerfile digest updates",
-      "matchManagers": ["dockerfile"],
-      "matchUpdateTypes": ["digest"],
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "matchUpdateTypes": [
+        "digest"
+      ],
       "automerge": true,
       "automergeType": "pr"
     },
     {
-      "description": "Automerge linting and security scanner GitHub Actions",
-      "matchFileNames": [".github/workflows/**"],
-      "matchManagers": ["github-actions"],
+      "description": "Automerge stable minor and patch updates for approved linting and security scanner GitHub Actions",
+      "matchFileNames": [
+        ".github/workflows/**"
+      ],
+      "matchManagers": [
+        "github-actions"
+      ],
       "matchPackageNames": [
         "super-linter/super-linter",
         "ShiftLeftSecurity/scan-action",
@@ -52,7 +68,12 @@
         "anchore/scan-action"
       ],
       "automerge": true,
-      "automergeType": "pr"
+      "automergeType": "pr",
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "matchNewValue": "!/-/"
     }
   ]
 }
