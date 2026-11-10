@@ -31,6 +31,7 @@ jobs:
         with:
           node-version: 24
       - run: node --test tests/renovate.test.cjs
+      - run: python3 -m unittest discover -s tests -p 'test_*.py'
   renovate-live-validation:
     name: Validate live Renovate Codeberg datasource
     runs-on: ubuntu-latest
@@ -52,6 +53,19 @@ jobs:
         run: bash tests/test_validate_renovate.sh
       - name: Validate live Codeberg lookup
         run: bash .github/scripts/validate-renovate.sh
+  verify-action-pins-live:
+    name: Verify pinned GitHub Actions against release tags
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify action SHA pins
+        run: python3 scripts/verify_action_pins.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   super-linter:
     name: super-linter
     permissions:
