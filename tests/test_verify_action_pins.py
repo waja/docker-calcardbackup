@@ -1,6 +1,8 @@
 """Unit tests for the GitHub Actions pin verifier."""
 
 import unittest
+from io import BytesIO
+from urllib.error import HTTPError
 from unittest import TestCase
 from unittest.mock import patch
 
@@ -8,6 +10,7 @@ from scripts.verify_action_pins import (
     parse_action_reference,
     tag_commit,
     verify_pin,
+    api_json,
     workflow_action_lines,
 )
 
@@ -139,9 +142,6 @@ class ApiRequestTests(TestCase):
     @patch.dict("os.environ", {"GITHUB_TOKEN": "scoped-token"})
     def test_retries_public_lookup_without_rejected_token(self, urlopen):
         """Retry an upstream public lookup without an out-of-scope workflow token."""
-        from urllib.error import HTTPError
-        from io import BytesIO
-
         denied = HTTPError(
             "https://api.github.com/repos/actions/checkout/git/ref/tags/v7.0.1",
             404,
@@ -149,26 +149,28 @@ class ApiRequestTests(TestCase):
             {},
             BytesIO(b"not found"),
         )
-        response = unittest.mock.MagicMock()
-        response.__enter__.return_value = response
-        response.__exit__.return_value = False
-        response.read.return_value = b'{"object":{"type":"commit","sha":"abc"}}'
-        response.__enter__.return_value.__class__ = response.__class__
-        response.__enter__.return_value.read.return_value = response.read.return_value
-        response.__enter__.return_value.__iter__.return_value = iter([])
-        response.__enter__.return_value.status = 200
-        response.__enter__.return_value.headers = {}
-        response.__enter__.return_value.__enter__ = lambda: response.__enter__.return_value
-        response.__enter__.return_value.__exit__ = lambda *args: False
-        urlopen.side_effect = [denied, response.__enter__.return_value]
-        from scripts.verify_action_pins import api_json
-
-        with patch("scripts.verify_action_pins.json.load", return_value={"ok": True}):
-            self.assertEqual(api_json("repos/actions/checkout/git/ref/tags/v7.0.1"), {"ok": True})
+        urlopen.side_effect = [denied, BytesIO(b'{"ok": true}')]
+        self.assertEqual(
+            api_json("repos/actions/checkout/git/ref/tags/v7.0.1"),
+            {"ok": True},
+        )
         first_headers = urlopen.call_args_list[0].args[0].headers
         second_headers = urlopen.call_args_list[1].args[0].headers
         self.assertIn("Bearer scoped-token", first_headers.get("Authorization", ""))
         self.assertNotIn("Authorization", second_headers)
+
+    @patch("scripts.verify_action_pins.time.sleep")
+    @patch("scripts.verify_action_pins.urllib.request.urlopen")
+    def test_retries_transient_server_errors(self, urlopen, sleep):
+        """Retry a transient server error with bounded backoff."""
+        urlopen.side_effect = [
+            HTTPError("https://api.github.com/test", 503, "Unavailable", {}, BytesIO(b"")),
+            BytesIO(b'{"ok": true}'),
+        ]
+        self.assertEqual(api_json("test"), {"ok": True})
+        sleep.assert_called_once_with(1)
+        self.assertEqual(urlopen.call_count, 2)
+
 
 
 class TagResolutionTests(TestCase):
