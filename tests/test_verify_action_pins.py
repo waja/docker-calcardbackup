@@ -77,21 +77,16 @@ class ActionReferenceTests(TestCase):
     def test_checks_job_level_reusable_workflow_references(self):
         """Include reusable workflow calls declared at the job level."""
         sha = "d" * 40
-        workflow = (
-            "jobs:\n"
-            "  reusable:\n"
-            "    uses: waja/docker-calcardbackup/.github/workflows/ci.yml@"
-            + sha
-            + " # v1.2.3\n"
-        )
+        workflow = f"""jobs:
+  reusable:
+    uses: waja/docker-calcardbackup/.github/workflows/ci.yml@{sha} # v1.2.3
+"""
         self.assertEqual(
             list(workflow_action_lines(workflow)),
             [(3, f"uses: waja/docker-calcardbackup/.github/workflows/ci.yml@{sha} # v1.2.3")],
         )
         self.assertEqual(
-            parse_action_reference(
-                f"uses: waja/docker-calcardbackup/.github/workflows/ci.yml@{sha} # v1.2.3"
-            ),
+            parse_action_reference(f"uses: waja/docker-calcardbackup/.github/workflows/ci.yml@{sha} # v1.2.3"),
             ("waja/docker-calcardbackup", sha, "1.2.3"),
         )
 
