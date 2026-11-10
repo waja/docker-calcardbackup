@@ -141,7 +141,7 @@ jobs:
       - renovate-tests
       - super-linter
       - shiftleft
-      - verify-action-pins-live
+      - verify-action-pins
     strategy:
       fail-fast: false
     runs-on: ubuntu-latest
@@ -493,14 +493,39 @@ jobs:
         env:
           EXPECTED_SHA: ${{ github.sha }}
         run: |
+          lookup_remote_sha() {
+            local ref="$1"
+            local attempt=1
+            local output
+            local status
+
+            while (( attempt <= 3 )); do
+              if output="$(timeout 15s git ls-remote origin "$ref")"; then
+                awk 'NR == 1 { print $1 }' <<< "$output"
+                return 0
+              else
+                status=$?
+              fi
+
+              if (( attempt == 3 )); then
+                echo "Unable to resolve $ref after $attempt attempts" >&2
+                return "$status"
+              fi
+
+              sleep $((attempt * 2))
+              attempt=$((attempt + 1))
+            done
+          }
+
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            remote_sha="$(git ls-remote origin "$GITHUB_REF^{}" | awk '{print $1}')"
+            remote_sha="$(lookup_remote_sha "$GITHUB_REF^{}")"
             if [[ -z "$remote_sha" ]]; then
-              remote_sha="$(git ls-remote origin "$GITHUB_REF" | awk '{print $1}')"
+              remote_sha="$(lookup_remote_sha "$GITHUB_REF")"
             fi
           else
-            remote_sha="$(git ls-remote origin "$GITHUB_REF" | awk '{print $1}')"
+            remote_sha="$(lookup_remote_sha "$GITHUB_REF")"
           fi
+
           if [[ "$remote_sha" != "$EXPECTED_SHA" ]]; then
             echo "Ref moved from $EXPECTED_SHA to $remote_sha; refusing stale publish" >&2
             exit 1
