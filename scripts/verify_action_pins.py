@@ -58,6 +58,7 @@ def api_json(path: str) -> dict:
                 return json.load(response)
         except urllib.error.HTTPError as error:
             body = error.read().decode("utf-8", errors="replace")
+            error.close()
             auth_denied = error.code in (401, 404) or (
                 error.code == 403 and "Resource not accessible" in body
             )
