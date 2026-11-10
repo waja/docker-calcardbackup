@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Classify common network, TLS, rate-limit, and upstream HTTP failures.
 
 classify_renovate_error() {
