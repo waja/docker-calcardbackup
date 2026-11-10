@@ -31,9 +31,8 @@ class ActionReferenceTests(TestCase):
         sha = "a" * 40
         for quote in ('"', "'"):
             with self.subTest(quote=quote):
-                action_line = (
-                    f"      uses: {quote}actions/checkout@{sha} # v7.0.1{quote}"
-                )
+                prefix = f"      uses: {quote}actions/checkout@"
+                action_line = f"{prefix}{sha} # v7.0.1{quote}"
                 self.assertEqual(
                     parse_action_reference(action_line),
                     ("actions/checkout", sha, "7.0.1"),
