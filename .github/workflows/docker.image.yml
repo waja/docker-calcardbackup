@@ -332,7 +332,7 @@ jobs:
     if: github.event_name == 'push' || github.event_name == 'schedule'
     concurrency:
       group: docker-release-${{ github.event_name == 'schedule' && 'nightly' || github.ref }}
-      cancel-in-progress: false
+      cancel-in-progress: true
     needs:
       - test
       - dockle
