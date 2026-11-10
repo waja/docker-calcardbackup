@@ -78,11 +78,11 @@ class ActionReferenceTests(TestCase):
         """Include reusable workflow calls declared at the job level."""
         sha = "d" * 40
         workflow = (
-            "jobs:\\n"
-            "  reusable:\\n"
+            "jobs:\n"
+            "  reusable:\n"
             "    uses: waja/docker-calcardbackup/.github/workflows/ci.yml@"
             + sha
-            + " # v1.2.3\\n"
+            + " # v1.2.3\n"
         )
         self.assertEqual(
             list(workflow_action_lines(workflow)),
