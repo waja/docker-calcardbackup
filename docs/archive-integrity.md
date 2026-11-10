@@ -12,8 +12,8 @@ would not provide an independent authenticity guarantee if both files could
 be replaced together.
 
 Codeberg documents source archives as snapshots associated with Git tags and
-releases. The repository's current release workflow does not yet provide a
-verified checksum or signature that this image build can consume.
+releases. A verified checksum or signature for the current release artifacts has not yet
+been established as an available upstream input for this image build.
 
 ## Verification design
 
