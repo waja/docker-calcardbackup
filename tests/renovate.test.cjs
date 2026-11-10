@@ -262,7 +262,7 @@ test('workflow action references are SHA-pinned and version-labelled', () => {
     assert.match(
       line,
       /uses:\s+[^@\s]+@[0-9a-f]{40}\s+# v\d+\.\d+\.\d+\s*$/,
-      'invalid action reference: ' + line,
+      `invalid action reference: ${line}`,
     );
   }
 });
