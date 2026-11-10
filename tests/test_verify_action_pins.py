@@ -41,7 +41,8 @@ class ActionReferenceTests(TestCase):
     def test_ignores_uses_text_outside_step_mappings(self):
         """Do not treat comments or run-script content as action references."""
         sha = "a" * 40
-        workflow = """jobs:
+        workflow = (
+            """jobs:
   build:
     steps:
       - name: Example
@@ -49,8 +50,11 @@ class ActionReferenceTests(TestCase):
           echo 'uses: attacker/action@invalid'
           - uses: attacker/action@invalid
         # uses: attacker/action@invalid
-      - uses: actions/checkout@""" + sha + """ # v7.0.1
+      - uses: actions/checkout@"""
+            + sha
+            + """ # v7.0.1
 """
+        )
         self.assertEqual(
             list(workflow_action_lines(workflow)),
             [(9, f"uses: actions/checkout@{sha} # v7.0.1")],
@@ -64,7 +68,7 @@ class ActionReferenceTests(TestCase):
             "  build:\n"
             "    steps:\n"
             "    - uses: actions/checkout@" + sha + " # v7.0.1\n"
-            "  other: { steps: [{ uses: \"actions/checkout@" + sha + " # v7.0.1\" }] }\n"
+            '  other: { steps: [{ uses: "actions/checkout@' + sha + ' # v7.0.1" }] }\n'
         )
         found = list(workflow_action_lines(workflow))
         self.assertEqual(len(found), 2)
