@@ -1,18 +1,11 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended",
-    "docker:pinDigests"
-  ],
+  "extends": ["config:recommended", "docker:pinDigests"],
   "customManagers": [
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/^Dockerfile$/"
-      ],
-      "matchStrings": [
-        "(?:^|\\r\\n|\\r|\\n)[ \\t]*(?:#[^\\r\\n]*|[^\\r\\n]*\\\\[ \\t]*(?:\\r\\n|\\r|\\n)(?:(?:[ \\t]*#[^\\r\\n]*|[ \\t]*|[^\\r\\n]*\\\\[ \\t]*)(?:\\r\\n|\\r|\\n))*[^\\r\\n]*|[Ee][Nn][Vv][ \\t]+CALCARDBACKUP_VERSION[ \\t]+(?<currentValue>[^\\s]+))"
-      ],
+      "managerFilePatterns": ["/^Dockerfile$/"],
+      "matchStrings": ["(?:^|\\r\\n|\\r|\\n)[ \\t]*(?:#[^\\r\\n]*|[^\\r\\n]*\\\\[ \\t]*(?:\\r\\n|\\r|\\n)(?:(?:[ \\t]*#[^\\r\\n]*|[ \\t]*|[^\\r\\n]*\\\\[ \\t]*)(?:\\r\\n|\\r|\\n))*[^\\r\\n]*|[Ee][Nn][Vv][ \\t]+CALCARDBACKUP_VERSION[ \\t]+(?<currentValue>[^\\s]+))"],
       "depNameTemplate": "BernieO/calcardbackup",
       "packageNameTemplate": "BernieO/calcardbackup",
       "datasourceTemplate": "forgejo-tags",
@@ -23,55 +16,33 @@
   ],
   "packageRules": [
     {
-      "matchFileNames": [
-        ".github/workflows/**"
-      ],
+      "matchFileNames": [".github/workflows/**"],
       "pinDigests": false
     },
     {
-      "matchFileNames": [
-        "**/docker-compose*-example.yml"
-      ],
+      "matchFileNames": ["**/docker-compose*-example.yml"],
       "pinDigests": false
     },
     {
       "description": "Automerge non-major Dockerfile updates",
-      "matchManagers": [
-        "dockerfile"
-      ],
-      "matchUpdateTypes": [
-        "patch"
-      ],
+      "matchManagers": ["dockerfile"],
+      "matchUpdateTypes": ["patch"],
       "matchCurrentVersion": "!/^0/",
       "automerge": true,
       "automergeType": "pr"
     },
     {
       "description": "Automerge Dockerfile digest updates",
-      "matchManagers": [
-        "dockerfile"
-      ],
-      "matchUpdateTypes": [
-        "digest"
-      ],
+      "matchManagers": ["dockerfile"],
+      "matchUpdateTypes": ["digest"],
       "automerge": true,
       "automergeType": "pr"
     },
     {
       "description": "Automerge linting and security scanner GitHub Actions",
-      "matchFileNames": [
-        ".github/workflows/**"
-      ],
-      "matchManagers": [
-        "github-actions"
-      ],
-      "matchPackageNames": [
-        "super-linter/super-linter",
-        "ShiftLeftSecurity/scan-action",
-        "goodwithtech/dockle-action",
-        "aquasecurity/trivy-action",
-        "anchore/scan-action"
-      ],
+      "matchFileNames": [".github/workflows/**"],
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["super-linter/super-linter", "ShiftLeftSecurity/scan-action", "goodwithtech/dockle-action", "aquasecurity/trivy-action", "anchore/scan-action"],
       "automerge": true,
       "automergeType": "pr"
     }
