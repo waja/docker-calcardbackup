@@ -53,35 +53,39 @@ def api_json(path: str) -> dict:
 
     for attempt in range(4):
         request = urllib.request.Request(url, headers=headers)
+        delay = 0
         try:
             with urllib.request.urlopen(request, timeout=20) as response:
                 return json.load(response)
         except urllib.error.HTTPError as error:
             body = error.read().decode("utf-8", errors="replace")
             error.close()
-            auth_denied = error.code in (401, 404) or (
-                error.code == 403 and "Resource not accessible" in body
-            )
+            auth_denied = error.code in (401, 404)
+            if error.code == 403 and "Resource not accessible" in body:
+                auth_denied = True
             if token and auth_denied:
                 headers.pop("Authorization", None)
                 token = None
                 continue
             if error.code not in (429, 500, 502, 503, 504) or attempt == 3:
-                raise RuntimeError(
-                    f"GitHub API request failed for {path}: HTTP {error.code}: {body}"
-                ) from error
+                message = (
+                    f"GitHub API request failed for {path}: "
+                    f"HTTP {error.code}: {body}"
+                )
+                raise RuntimeError(message) from error
             retry_after = error.headers.get("Retry-After")
-            delay = min(int(retry_after), 30) if retry_after and retry_after.isdigit() else 2**attempt
+            if retry_after and retry_after.isdigit():
+                delay = min(int(retry_after), 30)
+            else:
+                delay = 2**attempt
         except (urllib.error.URLError, TimeoutError) as error:
             if attempt == 3:
-                raise RuntimeError(
-                    f"GitHub API request failed for {path}: {error}"
-                ) from error
+                message = f"GitHub API request failed for {path}: {error}"
+                raise RuntimeError(message) from error
             delay = 2**attempt
         except json.JSONDecodeError as error:
-            raise RuntimeError(
-                f"GitHub API returned invalid JSON for {path}: {error}"
-            ) from error
+            message = f"GitHub API returned invalid JSON for {path}: {error}"
+            raise RuntimeError(message) from error
         time.sleep(delay)
 
     raise RuntimeError(f"GitHub API request exhausted retries for {path}")
@@ -112,6 +116,14 @@ def parse_action_reference(line: str) -> tuple[str, str, str] | None:
     return repository, sha, version
 
 
+def mapping_value(mapping, key_name):
+    """Return a YAML mapping value for a scalar key."""
+    for key, value in mapping.value:
+        if isinstance(key, yaml.ScalarNode) and key.value == key_name:
+            return value
+    return None
+
+
 def workflow_action_lines(workflow_text: str):
     """Yield action references from YAML step mappings, preserving line numbers."""
     document = yaml.compose(workflow_text)
@@ -119,46 +131,34 @@ def workflow_action_lines(workflow_text: str):
         return
 
     raw_lines = workflow_text.splitlines()
-    jobs = next(
-        (
-            value
-            for key, value in document.value
-            if isinstance(key, yaml.ScalarNode) and key.value == "jobs"
-        ),
-        None,
-    )
+    jobs = mapping_value(document, "jobs")
     if not isinstance(jobs, yaml.MappingNode):
         return
 
     for _, job in jobs.value:
         if not isinstance(job, yaml.MappingNode):
             continue
-        steps = next(
-            (
-                value
-                for key, value in job.value
-                if isinstance(key, yaml.ScalarNode) and key.value == "steps"
-            ),
-            None,
-        )
+        steps = mapping_value(job, "steps")
         if not isinstance(steps, yaml.SequenceNode):
             continue
         for step in steps.value:
             if not isinstance(step, yaml.MappingNode):
                 continue
             for key, value in step.value:
-                if (
-                    isinstance(key, yaml.ScalarNode)
-                    and key.value == "uses"
-                    and isinstance(value, yaml.ScalarNode)
-                ):
-                    line_number = value.start_mark.line + 1
-                    reference = value.value
-                    raw_line = raw_lines[line_number - 1]
-                    comment = re.search(r"\s+#\s*v[0-9A-Za-z][0-9A-Za-z._+-]*\s*$", raw_line)
-                    if comment and "#" not in reference:
-                        reference = f"{reference}{comment.group(0)}"
-                    yield line_number, f"uses: {reference}"
+                if not isinstance(key, yaml.ScalarNode) or key.value != "uses":
+                    continue
+                if not isinstance(value, yaml.ScalarNode):
+                    continue
+                line_number = value.start_mark.line + 1
+                reference = value.value
+                raw_line = raw_lines[line_number - 1]
+                comment = re.search(
+                    r"\\s+#\\s*v[0-9A-Za-z][0-9A-Za-z._+-]*\\s*$",
+                    raw_line,
+                )
+                if comment and "#" not in reference:
+                    reference = f"{reference}{comment.group(0)}"
+                yield line_number, f"uses: {reference}"
 
 
 def verify_pin(repository: str, sha: str, version: str) -> str | None:
