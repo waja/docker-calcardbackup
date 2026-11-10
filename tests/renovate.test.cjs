@@ -267,6 +267,24 @@ test('workflow action references are SHA-pinned and version-labelled', () => {
   }
 });
 
+test('ShiftLeft report uploads are non-blocking and rerun-safe', () => {
+  const workflow = readFileSync(
+    path.join(root, '.github/workflows/docker.image.yml'),
+    'utf8',
+  );
+  const upload = workflow.match(
+    /- name: Save scan reports\n([\s\S]*?)(?=\n  shiftleft-report:)/,
+  )?.[1];
+  const download = workflow.match(
+    /  shiftleft-report:\n([\s\S]*?)(?=\n  test-build:)/,
+  )?.[1];
+  assert.ok(upload, 'ShiftLeft report upload must exist');
+  assert.ok(download, 'ShiftLeft report download must exist');
+  assert.match(upload, /continue-on-error: true/);
+  assert.match(upload, /name: shiftleft-reports-\$\{\{ github\.run_attempt \}\}/);
+  assert.match(download, /name: shiftleft-reports-\$\{\{ github\.run_attempt \}\}/);
+});
+
 test('image builds do not depend on SARIF upload permissions', () => {
   const workflow = readFileSync(
     path.join(root, '.github/workflows/docker.image.yml'),
