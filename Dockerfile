@@ -2,7 +2,7 @@
 # requires DOCKER_BUILDKIT=1 set when running docker build
 # checkov:skip=CKV_DOCKER_2: no healthcheck (yet)
 # checkov:skip=CKV_DOCKER_3: no user (yet)
-FROM alpine:3.24.4@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
+FROM alpine:3.24.4@sha256:93b41ef40b1677fce8fcc64ff4af09daddfacf5040afde618bc46c1e2d1cc7d4
 
 ARG BUILD_DATE
 ARG BUILD_VERSION
@@ -38,7 +38,19 @@ WORKDIR /opt/calcardbackup
 # Download latest release
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
 # hadolint ignore=DL3017,DL3018
-RUN curl -L "https://codeberg.org/BernieO/calcardbackup/archive/v$CALCARDBACKUP_VERSION.tar.gz" | tar xz --strip=1 && \
+RUN for attempt in 1 2 3; do \
+    if curl --fail --location --connect-timeout 15 --max-time 120 \
+        --output /tmp/calcardbackup.tar.gz "https://codeberg.org/BernieO/calcardbackup/archive/v$CALCARDBACKUP_VERSION.tar.gz" && \
+        tar -tzf /tmp/calcardbackup.tar.gz > /dev/null; then \
+      break; \
+    fi; \
+    if [ "$attempt" -eq 3 ]; then \
+      echo "Unable to download a valid calcardbackup archive" >&2; exit 1; \
+    fi; \
+    echo "Download attempt $attempt failed; retrying" >&2; sleep 5; \
+  done && \
+  tar -xzf /tmp/calcardbackup.tar.gz --strip=1 && \
+  rm /tmp/calcardbackup.tar.gz && \
   # Remove build deps
   apk del build-dependencies && \
   # Install needed packages
