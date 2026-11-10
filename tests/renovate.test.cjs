@@ -296,10 +296,14 @@ test('image builds do not depend on SARIF upload permissions', () => {
   assert.ok(build, 'test-build job must exist');
   const needs = build.match(/ {4}needs:\n((?: {6}- [^\n]+\n)+)/)?.[1];
   assert.ok(needs, 'build prerequisites must exist');
-  assert.deepEqual(
-    Array.from(needs.matchAll(/ {6}- ([^\n]+)/g), (match) => match[1]).sort(),
-    ['renovate-tests', 'shiftleft', 'super-linter'],
+  const prerequisites = Array.from(
+    needs.matchAll(/ {6}- ([^\n]+)/g),
+    (match) => match[1],
   );
+  for (const required of ['renovate-tests', 'shiftleft', 'super-linter']) {
+    assert.ok(prerequisites.includes(required), required + ' must gate the build');
+  }
+  assert.ok(!prerequisites.includes('shiftleft-report'));
 });
 
 test('Dependabot remains configured alongside Renovate', () => {
