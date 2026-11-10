@@ -2,15 +2,15 @@
 
 import unittest
 from io import BytesIO
-from urllib.error import HTTPError
 from unittest import TestCase
 from unittest.mock import patch
+from urllib.error import HTTPError
 
 from scripts.verify_action_pins import (
+    api_json,
     parse_action_reference,
     tag_commit,
     verify_pin,
-    api_json,
     workflow_action_lines,
 )
 
@@ -170,7 +170,6 @@ class ApiRequestTests(TestCase):
         self.assertEqual(api_json("test"), {"ok": True})
         sleep.assert_called_once_with(1)
         self.assertEqual(urlopen.call_count, 2)
-
 
 
 class TagResolutionTests(TestCase):
