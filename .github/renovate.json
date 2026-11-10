@@ -41,7 +41,7 @@
       "automergeType": "pr"
     },
     {
-      "description": "Automerge linting and security scanner GitHub Actions",
+      "description": "Automerge stable minor and patch updates for approved linting and security scanner GitHub Actions",
       "matchFileNames": [".github/workflows/**"],
       "matchManagers": ["github-actions"],
       "matchPackageNames": [
@@ -51,6 +51,8 @@
         "aquasecurity/trivy-action",
         "anchore/scan-action"
       ],
+      "matchUpdateTypes": ["minor", "patch"],
+      "matchNewValue": "!/-/",
       "automerge": true,
       "automergeType": "pr"
     }
