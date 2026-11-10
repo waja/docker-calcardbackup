@@ -28,9 +28,7 @@ class ActionReferenceTests(TestCase):
 
     def test_ignores_local_action_references(self):
         """Treat local action references as an explicit non-SHA case."""
-        self.assertIsNone(
-            parse_action_reference("      - uses: ./.github/actions/test")
-        )
+        self.assertIsNone(parse_action_reference("      - uses: ./.github/actions/test"))
 
     def test_ignores_docker_container_actions(self):
         """Treat docker:// references as container images, not Git refs."""
