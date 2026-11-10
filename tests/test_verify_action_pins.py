@@ -64,7 +64,7 @@ class ActionReferenceTests(TestCase):
             "  build:\n"
             "    steps:\n"
             "    - uses: actions/checkout@" + sha + " # v7.0.1\n"
-            "  other: { steps: [{ uses: actions/checkout@" + sha + " # v7.0.1 }] }\n"
+            "  other: { steps: [{ uses: \"actions/checkout@" + sha + " # v7.0.1\" }] }\n"
         )
         found = list(workflow_action_lines(workflow))
         self.assertEqual(len(found), 2)
