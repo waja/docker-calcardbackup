@@ -106,9 +106,7 @@ def parse_action_reference(line: str) -> tuple[str, str, str] | None:
     if reference.startswith("./"):
         return None
     if reference.startswith("docker://"):
-        raise ValueError(
-            "docker:// actions are not verifiable; use an immutable OCI digest"
-        )
+        raise ValueError("docker:// actions are not verifiable; use an immutable OCI digest")
     action_match = ACTION.match(f"uses: {reference}")
     if action_match is None:
         raise ValueError("action must use a full SHA and include its version comment")
@@ -124,6 +122,17 @@ def mapping_value(mapping, key_name):
         if isinstance(key, yaml.ScalarNode) and key.value == key_name:
             return value
     return None
+
+
+def _action_reference_line(value, raw_lines):
+    """Return a YAML action reference with its version comment and line number."""
+    line_number = value.start_mark.line + 1
+    reference = value.value
+    raw_line = raw_lines[line_number - 1]
+    comment = re.search(r"\\s+#\\s*v[0-9A-Za-z][0-9A-Za-z._+-]*\\s*$", raw_line)
+    if comment and "#" not in reference:
+        reference = f"{reference}{comment.group(0)}"
+    return line_number, f"uses: {reference}"
 
 
 def workflow_action_lines(workflow_text: str):
@@ -142,16 +151,7 @@ def workflow_action_lines(workflow_text: str):
             continue
         job_uses = mapping_value(job, "uses")
         if isinstance(job_uses, yaml.ScalarNode):
-            line_number = job_uses.start_mark.line + 1
-            reference = job_uses.value
-            raw_line = raw_lines[line_number - 1]
-            comment = re.search(
-                r"\s+#\s*v[0-9A-Za-z][0-9A-Za-z._+-]*\s*$",
-                raw_line,
-            )
-            if comment and "#" not in reference:
-                reference = f"{reference}{comment.group(0)}"
-            yield line_number, f"uses: {reference}"
+            yield _action_reference_line(job_uses, raw_lines)
         steps = mapping_value(job, "steps")
         if not isinstance(steps, yaml.SequenceNode):
             continue
@@ -161,18 +161,8 @@ def workflow_action_lines(workflow_text: str):
             for key, value in step.value:
                 if not isinstance(key, yaml.ScalarNode) or key.value != "uses":
                     continue
-                if not isinstance(value, yaml.ScalarNode):
-                    continue
-                line_number = value.start_mark.line + 1
-                reference = value.value
-                raw_line = raw_lines[line_number - 1]
-                comment = re.search(
-                    r"\s+#\s*v[0-9A-Za-z][0-9A-Za-z._+-]*\s*$",
-                    raw_line,
-                )
-                if comment and "#" not in reference:
-                    reference = f"{reference}{comment.group(0)}"
-                yield line_number, f"uses: {reference}"
+                if isinstance(value, yaml.ScalarNode):
+                    yield _action_reference_line(value, raw_lines)
 
 
 def verify_pin(repository: str, sha: str, version: str) -> str | None:
