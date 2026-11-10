@@ -52,7 +52,7 @@ test('the custom manager targets only the root Dockerfile', () => {
   ]) {
     assert.ok(
       !patterns.some((pattern) => pattern.test(filename)),
-      'must not extract dependencies from ' + filename,
+      `must not extract dependencies from ${filename}`,
     );
   }
 });
