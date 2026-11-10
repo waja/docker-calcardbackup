@@ -83,10 +83,10 @@ class ActionReferenceTests(TestCase):
             parse_action_reference(f"      - uses: attacker/checkout@{sha} # v7.0.1")
 
     @patch("scripts.verify_action_pins.tag_commit", return_value="a" * 40)
-    def test_accepts_matching_tag_commit(self, tag_commit):
+    def test_accepts_matching_tag_commit(self, mock_tag_commit):
         """Accept a pin when its tag resolves to the same commit."""
         self.assertIsNone(verify_pin("actions/checkout", "a" * 40, "7.0.1"))
-        tag_commit.assert_called_once_with("actions/checkout", "7.0.1")
+        mock_tag_commit.assert_called_once_with("actions/checkout", "7.0.1")
 
     @patch("scripts.verify_action_pins.tag_commit", return_value="b" * 40)
     def test_rejects_mismatched_sha(self, _tag_commit):
