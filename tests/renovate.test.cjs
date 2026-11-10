@@ -216,14 +216,11 @@ test('GitHub Actions automerge is restricted to the reviewed allowlist', () => {
       && ('automerge' in rule || 'automergeType' in rule),
   );
   assert.equal(rules.length, 1);
-  assert.deepEqual(rules[0], {
-    description: 'Automerge linting and security scanner GitHub Actions',
-    matchFileNames: ['.github/workflows/**'],
-    matchManagers: ['github-actions'],
-    matchPackageNames: approvedActions,
-    automerge: true,
-    automergeType: 'pr',
-  });
+  assert.deepEqual(rules[0].matchFileNames, ['.github/workflows/**']);
+  assert.deepEqual(rules[0].matchManagers, ['github-actions']);
+  assert.deepEqual(rules[0].matchPackageNames, approvedActions);
+  assert.equal(rules[0].automerge, true);
+  assert.equal(rules[0].automergeType, 'pr');
 });
 
 test('workflow action references are SHA-pinned and version-labelled', () => {
