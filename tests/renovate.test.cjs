@@ -195,6 +195,7 @@ test('rejects broad automerge rules affecting Dockerfile updates', () => {
 });
 
 test('calcardbackup application-version updates require review', () => {
+  assert.notEqual(config.automerge, true);
   const rules = config.packageRules.filter(
     (rule) => ('automerge' in rule || 'automergeType' in rule)
       && mayAffectManager(rule, 'custom.regex'),
@@ -212,8 +213,8 @@ const approvedActions = [
 
 test('GitHub Actions automerge is restricted to the reviewed allowlist', () => {
   const rules = config.packageRules.filter(
-    (rule) => rule.matchManagers?.includes('github-actions')
-      && ('automerge' in rule || 'automergeType' in rule),
+    (rule) => ('automerge' in rule || 'automergeType' in rule)
+      && mayAffectManager(rule, 'github-actions'),
   );
   assert.equal(rules.length, 1);
   assert.deepEqual(rules[0].matchFileNames, ['.github/workflows/**']);
