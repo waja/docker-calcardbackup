@@ -74,6 +74,21 @@ class ActionReferenceTests(TestCase):
         self.assertEqual(len(found), 2)
         self.assertEqual(found[0][1], f"uses: actions/checkout@{sha} # v7.0.1")
 
+    def test_checks_job_level_reusable_workflow_references(self):
+        """Include reusable workflow calls declared at the job level."""
+        sha = "d" * 40
+        workflow = (
+            "jobs:\\n"
+            "  reusable:\\n"
+            "    uses: waja/docker-calcardbackup/.github/workflows/ci.yml@"
+            + sha
+            + " # v1.2.3\\n"
+        )
+        self.assertEqual(
+            list(workflow_action_lines(workflow)),
+            [(3, f"uses: waja/docker-calcardbackup/.github/workflows/ci.yml@{sha} # v1.2.3")],
+        )
+
     def test_supports_arbitrary_step_indentation(self):
         """Parse valid workflow YAML without assuming a fixed indentation width."""
         sha = "c" * 40
@@ -100,9 +115,10 @@ class ActionReferenceTests(TestCase):
         local_action = "      - uses: ./.github/actions/test"
         self.assertIsNone(parse_action_reference(local_action))
 
-    def test_ignores_docker_container_actions(self):
-        """Treat docker:// references as container images, not Git refs."""
-        self.assertIsNone(parse_action_reference("      - uses: docker://alpine:3"))
+    def test_rejects_mutable_docker_container_actions(self):
+        """Reject docker:// references that the verifier cannot authenticate."""
+        with self.assertRaisesRegex(ValueError, "immutable OCI digest"):
+            parse_action_reference("      - uses: docker://alpine:3")
 
     def test_rejects_malformed_sha(self):
         """Reject action refs that do not use a full 40-character SHA."""
