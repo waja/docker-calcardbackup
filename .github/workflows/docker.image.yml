@@ -139,6 +139,7 @@ jobs:
       - renovate-tests
       - super-linter
       - shiftleft
+      - verify-action-pins-live
     strategy:
       fail-fast: false
     runs-on: ubuntu-latest
