@@ -82,7 +82,7 @@ class ActionReferenceTests(TestCase):
         )
         self.assertEqual(
             list(workflow_action_lines(workflow)),
-            [(6, f"uses: actions/checkout@{sha} # v7.0.1")],
+            [(5, f"uses: actions/checkout@{sha} # v7.0.1")],
         )
 
     def test_rejects_sha_without_version_comment(self):
