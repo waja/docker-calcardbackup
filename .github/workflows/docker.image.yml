@@ -31,6 +31,24 @@ jobs:
         with:
           node-version: 24
       - run: node --test tests/renovate.test.cjs
+  renovate-live-validation:
+    name: Validate live Renovate Codeberg datasource
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Validate script syntax
+        run: |
+          bash -n .github/scripts/validate-renovate.sh
+          bash -n .github/scripts/classify-renovate-error.sh
+          bash -n tests/test_renovate_error_classifier.sh
+      - name: Test failure classification
+        run: bash tests/test_renovate_error_classifier.sh
+      - name: Validate live Codeberg lookup
+        run: bash .github/scripts/validate-renovate.sh
   super-linter:
     name: super-linter
     permissions:
