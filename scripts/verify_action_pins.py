@@ -68,10 +68,7 @@ def api_json(path: str) -> dict:
                 token = None
                 continue
             if error.code not in (429, 500, 502, 503, 504) or attempt == 3:
-                message = (
-                    f"GitHub API request failed for {path}: "
-                    f"HTTP {error.code}: {body}"
-                )
+                message = f"GitHub API request failed for {path}: HTTP {error.code}: {body}"
                 raise RuntimeError(message) from error
             retry_after = error.headers.get("Retry-After")
             if retry_after and retry_after.isdigit():
