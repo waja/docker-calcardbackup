@@ -110,15 +110,15 @@ class TagResolutionTests(TestCase):
     """Check dereferencing of annotated Git tags."""
 
     @patch("scripts.verify_action_pins.api_json")
-    def test_resolves_nested_annotated_tags(self, api_json):
+    def test_resolves_nested_annotated_tags(self, mock_api_json):
         """Follow multiple annotated tag objects until the commit is reached."""
-        api_json.side_effect = [
+        mock_api_json.side_effect = [
             {"object": {"type": "tag", "sha": "tag-one"}},
             {"object": {"type": "tag", "sha": "tag-two"}},
             {"object": {"type": "commit", "sha": "c" * 40}},
         ]
         self.assertEqual(tag_commit("actions/checkout", "7.0.1"), "c" * 40)
-        self.assertEqual(api_json.call_count, 3)
+        self.assertEqual(mock_api_json.call_count, 3)
 
 
 if __name__ == "__main__":
