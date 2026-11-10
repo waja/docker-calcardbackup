@@ -88,6 +88,12 @@ class ActionReferenceTests(TestCase):
             list(workflow_action_lines(workflow)),
             [(3, f"uses: waja/docker-calcardbackup/.github/workflows/ci.yml@{sha} # v1.2.3")],
         )
+        self.assertEqual(
+            parse_action_reference(
+                f"uses: waja/docker-calcardbackup/.github/workflows/ci.yml@{sha} # v1.2.3"
+            ),
+            ("waja/docker-calcardbackup", sha, "1.2.3"),
+        )
 
     def test_supports_arbitrary_step_indentation(self):
         """Parse valid workflow YAML without assuming a fixed indentation width."""
