@@ -151,8 +151,9 @@ user's request or these working agreements.
 - For `run.sh` changes, validate shell syntax and affected startup,
   wait, backup, logging, or cron behavior.
 - For dependency automation changes, validate actual dependency extraction
-  and datasource lookup, not just JSON syntax or a matching regular expression. Provide
-  a repeatable script or CI check where practical; fail when lookup metadata
+  and datasource lookup, not just JSON syntax or a matching regular
+  expression. Provide a repeatable script or CI check where practical; fail
+  when lookup metadata
   is absent.
 - Do not claim that a bot creates PRs for a dependency class unless an
   actual update PR or equivalent observed run demonstrates it.
