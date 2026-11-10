@@ -91,7 +91,7 @@ def api_json(path: str) -> dict:
 
 def _normalize_action_reference(line: str) -> str | None:
     """Extract and normalize a workflow uses scalar."""
-    match = re.match(r"^\\s*(?:-\\s*)?uses:\\s*(.*?)\\s*$", line)
+    match = re.match(r"^\s*(?:-\s*)?uses:\s*(.*?)\s*$", line)
     if match is None:
         return None
 
@@ -138,7 +138,7 @@ def _action_reference_line(value, raw_lines):
     line_number = value.start_mark.line + 1
     reference = value.value
     raw_line = raw_lines[line_number - 1]
-    comment = re.search(r"\\s+#\\s*v[0-9A-Za-z][0-9A-Za-z._+-]*\\s*$", raw_line)
+    comment = re.search(r"\s+#\s*v[0-9A-Za-z][0-9A-Za-z._+-]*\s*$", raw_line)
     if comment and "#" not in reference:
         reference = f"{reference}{comment.group(0)}"
     return line_number, f"uses: {reference}"
