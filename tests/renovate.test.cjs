@@ -301,7 +301,7 @@ test('image builds do not depend on SARIF upload permissions', () => {
     (match) => match[1],
   );
   for (const required of ['renovate-tests', 'shiftleft', 'super-linter']) {
-    assert.ok(prerequisites.includes(required), required + ' must gate the build');
+    assert.ok(prerequisites.includes(required), `${required} must gate the build`);
   }
   assert.ok(!prerequisites.includes('shiftleft-report'));
 });
