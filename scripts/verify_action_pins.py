@@ -154,7 +154,7 @@ def workflow_action_lines(workflow_text: str):
                     line_number = value.start_mark.line + 1
                     reference = value.value
                     raw_line = raw_lines[line_number - 1]
-                    comment = re.search(r"\\s+#\\s*v[0-9A-Za-z][0-9A-Za-z._+-]*\\s*$", raw_line)
+                    comment = re.search(r"\s+#\s*v[0-9A-Za-z][0-9A-Za-z._+-]*\s*$", raw_line)
                     if comment and "#" not in reference:
                         reference = f"{reference}{comment.group(0)}"
                     yield line_number, f"uses: {reference}"
