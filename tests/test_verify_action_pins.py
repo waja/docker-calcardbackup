@@ -4,7 +4,13 @@ import unittest
 from unittest import TestCase
 from unittest.mock import patch
 
-from scripts.verify_action_pins import ACTION, parse_action_reference, verify_pin
+from scripts.verify_action_pins import (
+    ACTION,
+    parse_action_reference,
+    tag_commit,
+    verify_pin,
+    workflow_action_lines,
+)
 
 
 class ActionReferenceTests(TestCase):
@@ -18,6 +24,36 @@ class ActionReferenceTests(TestCase):
         self.assertEqual(
             match.groups(),
             ("actions/checkout", sha, "7.0.1"),
+        )
+
+    def test_parses_quoted_action_reference(self):
+        """Accept valid single- or double-quoted action scalars."""
+        sha = "a" * 40
+        for quote in ('"', "'"):
+            with self.subTest(quote=quote):
+                self.assertEqual(
+                    parse_action_reference(
+                        f"      uses: {quote}actions/checkout@{sha} # v7.0.1{quote}"
+                    ),
+                    ("actions/checkout", sha, "7.0.1"),
+                )
+
+    def test_ignores_uses_text_outside_step_mappings(self):
+        """Do not treat comments or run-script content as action references."""
+        lines = [
+            "jobs:",
+            "  build:",
+            "    steps:",
+            "      - name: Example",
+            "        run: |",
+            "          echo 'uses: attacker/action@invalid'",
+            "          - uses: attacker/action@invalid",
+            "        # uses: attacker/action@invalid",
+            "      - uses: actions/checkout@" + "a" * 40 + " # v7.0.1",
+        ]
+        self.assertEqual(
+            list(workflow_action_lines(lines)),
+            [(9, "uses: actions/checkout@" + "a" * 40 + " # v7.0.1")],
         )
 
     def test_rejects_sha_without_version_comment(self):
@@ -68,6 +104,21 @@ class ActionReferenceTests(TestCase):
             verify_pin("actions/checkout", "a" * 40, "7.0.1"),
             "tag v7.0.1 not found in actions/checkout",
         )
+
+
+class TagResolutionTests(TestCase):
+    """Check dereferencing of annotated Git tags."""
+
+    @patch("scripts.verify_action_pins.api_json")
+    def test_resolves_nested_annotated_tags(self, api_json):
+        """Follow multiple annotated tag objects until the commit is reached."""
+        api_json.side_effect = [
+            {"object": {"type": "tag", "sha": "tag-one"}},
+            {"object": {"type": "tag", "sha": "tag-two"}},
+            {"object": {"type": "commit", "sha": "c" * 40}},
+        ]
+        self.assertEqual(tag_commit("actions/checkout", "7.0.1"), "c" * 40)
+        self.assertEqual(api_json.call_count, 3)
 
 
 if __name__ == "__main__":
