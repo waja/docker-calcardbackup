@@ -99,7 +99,7 @@ def parse_action_reference(line: str) -> tuple[str, str, str] | None:
         trailing = reference[end + 1 :].strip()
         if end < 0 or (trailing and not trailing.startswith("#")):
             raise ValueError("malformed quoted action reference")
-        reference = reference[1:end]
+        reference = reference[1:end] + (f" {trailing}" if trailing else "")
     if reference.startswith(("./", "docker://")):
         return None
     action_match = ACTION.match(f"uses: {reference}")
