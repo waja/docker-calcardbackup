@@ -70,9 +70,6 @@ def parse_action_reference(line: str) -> tuple[str, str, str] | None:
         ):
             raise ValueError("malformed quoted action reference")
         reference = reference[1:end]
-    else:
-        reference = reference.split(" #", 1)[0].strip()
-
     if reference.startswith(("./", "docker://")):
         return None
     action_match = ACTION.match(f"uses: {reference}")
@@ -135,7 +132,9 @@ def tag_commit(repository: str, version: str) -> str | None:
     while target.get("type") == "tag" and target.get("sha"):
         tag_sha = target["sha"]
         if tag_sha in seen:
-            raise RuntimeError(f"annotated tag cycle detected in {repository} v{version}")
+            raise RuntimeError(
+                f"annotated tag cycle detected in {repository} v{version}"
+            )
         seen.add(tag_sha)
         annotated = api_json(f"repos/{encoded_repository}/git/tags/{tag_sha}")
         target = annotated.get("object", {})
