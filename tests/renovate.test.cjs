@@ -252,7 +252,7 @@ test('image builds do not depend on SARIF upload permissions', () => {
   assert.ok(needs, 'build prerequisites must exist');
   assert.deepEqual(
     Array.from(needs.matchAll(/ {6}- ([^\n]+)/g), (match) => match[1]).sort(),
-    ['renovate-tests', 'shiftleft', 'super-linter'],
+    ['renovate-policy-tests', 'renovate-tests', 'shiftleft', 'super-linter'],
   );
 });
 
