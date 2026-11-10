@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 set -Eeuo pipefail
 
 # shellcheck source=.github/scripts/classify-renovate-error.sh
