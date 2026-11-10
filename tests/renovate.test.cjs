@@ -194,6 +194,33 @@ test('rejects broad automerge rules affecting Dockerfile updates', () => {
   );
 });
 
+test('rejects package rules that could automerge unreviewed GitHub Actions', () => {
+  const broadRules = [
+    { automerge: true },
+    { automerge: true, matchManagers: [] },
+    { automerge: true, matchManagers: ['github-actions', 'dockerfile'] },
+  ];
+  for (const broad of broadRules) {
+    const rules = [...config.packageRules, broad].filter(
+      (rule) => ('automerge' in rule || 'automergeType' in rule)
+        && mayAffectManager(rule, 'github-actions'),
+    );
+    assert.ok(
+      rules.some((rule) => rule === broad),
+      'broad automerge rule must be considered applicable to GitHub Actions',
+    );
+    assert.throws(() => {
+      const actionRules = rules.filter(
+        (rule) => rule.matchManagers?.includes('github-actions')
+          && rule.matchFileNames?.includes('.github/workflows/**')
+          && Array.isArray(rule.matchPackageNames)
+          && rule.matchPackageNames.every((name) => approvedActions.includes(name)),
+      );
+      assert.equal(actionRules.length, rules.length);
+    }, assert.AssertionError);
+  }
+});
+
 test('calcardbackup application-version updates require review', () => {
   assert.notEqual(config.automerge, true);
   const rules = config.packageRules.filter(
