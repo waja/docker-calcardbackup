@@ -5,7 +5,9 @@
     {
       "customType": "regex",
       "managerFilePatterns": ["/^Dockerfile$/"],
-      "matchStrings": ["(?:^|\\r\\n|\\r|\\n)[ \\t]*(?:#[^\\r\\n]*|[^\\r\\n]*\\\\[ \\t]*(?:\\r\\n|\\r|\\n)(?:(?:[ \\t]*#[^\\r\\n]*|[ \\t]*|[^\\r\\n]*\\\\[ \\t]*)(?:\\r\\n|\\r|\\n))*[^\\r\\n]*|[Ee][Nn][Vv][ \\t]+CALCARDBACKUP_VERSION[ \\t]+(?<currentValue>[^\\s]+))"],
+      "matchStrings": [
+        "(?:^|\\r\\n|\\r|\\n)[ \\t]*(?:#[^\\r\\n]*|[^\\r\\n]*\\\\[ \\t]*(?:\\r\\n|\\r|\\n)(?:(?:[ \\t]*#[^\\r\\n]*|[ \\t]*|[^\\r\\n]*\\\\[ \\t]*)(?:\\r\\n|\\r|\\n))*[^\\r\\n]*|[Ee][Nn][Vv][ \\t]+CALCARDBACKUP_VERSION[ \\t]+(?<currentValue>[^\\s]+))"
+      ],
       "depNameTemplate": "BernieO/calcardbackup",
       "packageNameTemplate": "BernieO/calcardbackup",
       "datasourceTemplate": "forgejo-tags",
