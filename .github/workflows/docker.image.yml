@@ -333,7 +333,7 @@ jobs:
     name: Release Docker images
     if: github.event_name == 'push' || github.event_name == 'schedule'
     concurrency:
-      group: docker-release-${{ github.ref }}
+      group: docker-release-${{ github.event_name == 'schedule' && 'nightly' || github.ref }}
       cancel-in-progress: false
     needs:
       - test
@@ -356,17 +356,6 @@ jobs:
         run: |
           if [[ ! "$RELEASE_TAG" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}-[0-9]{1,3}$ ]]; then
             echo "Refusing to publish non-release tag: $RELEASE_TAG" >&2
-            exit 1
-          fi
-
-      - name: Ensure branch ref is current
-        if: github.event_name == 'push' && github.ref_type == 'branch'
-        env:
-          EXPECTED_SHA: ${{ github.sha }}
-        run: |
-          actual_sha="$(git ls-remote origin "$GITHUB_REF" | awk '{print $1}')"
-          if [[ "$actual_sha" != "$EXPECTED_SHA" ]]; then
-            echo "Ref moved from $EXPECTED_SHA to $actual_sha; refusing stale publish" >&2
             exit 1
           fi
 
@@ -408,21 +397,21 @@ jobs:
           TAGS=""
           if [ "$DOCKERHUB_USERNAME" != '' ] && [ "$DOCKERHUB_TOKEN" != '' ]; then
             if [ "$REALEASE_TAG" = "true" ]; then
-              TAGS="$TAGS_INT,${DOCKER_IMAGE}:latest"
+              TAGS="$TAGS_INT"
             else
               TAGS="$TAGS_INT"
             fi
           fi
           if [ "$GITHUB_TOKEN" != '' ]; then
             if [ "$REALEASE_TAG" = "true" ]; then
-              TAGS="$TAGS,ghcr.io/$TAGS_INT,ghcr.io/${DOCKER_IMAGE}:latest"
+              TAGS="$TAGS,ghcr.io/$TAGS_INT"
             else
               TAGS="$TAGS,ghcr.io/$TAGS_INT"
             fi
           fi
           if [ "$QUAY_USERNAME" != '' ] && [ "$QUAY_TOKEN" != '' ]; then
             if [ "$REALEASE_TAG" = "true" ]; then
-              TAGS="$TAGS,quay.io/$TAGS_INT,quay.io/${DOCKER_IMAGE}:latest"
+              TAGS="$TAGS,quay.io/$TAGS_INT"
             else
               TAGS="$TAGS,quay.io/$TAGS_INT"
             fi
@@ -501,6 +490,23 @@ jobs:
             VCS_REF="$(git rev-parse --short HEAD)"
             VCS_URL="$(git config --get remote.origin.url)"
             VCS_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+
+      - name: Ensure source ref is current before publishing
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            remote_sha="$(git ls-remote origin "$GITHUB_REF^{}" | awk '{print $1}')"
+            if [[ -z "$remote_sha" ]]; then
+              remote_sha="$(git ls-remote origin "$GITHUB_REF" | awk '{print $1}')"
+            fi
+          else
+            remote_sha="$(git ls-remote origin "$GITHUB_REF" | awk '{print $1}')"
+          fi
+          if [[ "$remote_sha" != "$EXPECTED_SHA" ]]; then
+            echo "Ref moved from $EXPECTED_SHA to $remote_sha; refusing stale publish" >&2
+            exit 1
+          fi
 
       - name: Build and push
         id: docker_build
