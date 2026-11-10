@@ -91,8 +91,6 @@ jobs:
           VALIDATE_TRIVY: false
           VALIDATE_BIOME_FORMAT: false
           VALIDATE_PYTHON_BLACK: false
-          VALIDATE_PYTHON_RUFF: true
-          VALIDATE_PYTHON_RUFF_FORMAT: true
   shiftleft:
     name: shiftleft
     permissions:
