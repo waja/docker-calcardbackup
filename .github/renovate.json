@@ -51,6 +51,8 @@
         "aquasecurity/trivy-action",
         "anchore/scan-action"
       ],
+      "matchUpdateTypes": ["minor", "patch"],
+      "matchNewValue": "!/-/",
       "automerge": true,
       "automergeType": "pr"
     }
