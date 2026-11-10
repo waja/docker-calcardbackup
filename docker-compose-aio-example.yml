@@ -1,0 +1,52 @@
+version: "3.8"
+
+services:
+  # See https://github.com/nextcloud/all-in-one/blob/main/compose.yaml for actual usage details
+  nextcloud:
+    image: nextcloud/all-in-one:latest # Must be changed to 'nextcloud/all-in-one:latest-arm64' when used with an arm64 CPU
+    restart: unless-stopped
+    container_name: nextcloud-aio-mastercontainer # This line is not allowed to be changed
+    volumes:
+      - nextcloud_aio_mastercontainer:/mnt/docker-aio-config # This line is not allowed to be changed
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - 3080:8080
+    environment:
+      - APACHE_PORT=3443
+      - NEXTCLOUD_MOUNT=/mnt/nfs
+    networks:
+      - nextcloud-aio
+
+  # Based from https://github.com/waja/docker-calcardbackup/blob/development/docker-compose-example.yml#L28
+  nextcloud-nc-backup:
+    image: waja/calcardbackup
+    environment:
+      - CRON_TIME=0 0 * * *
+      - INIT_BACKUP=yes
+      - CALCARD_OPTS=-i -r 20
+      - NC_HOST=nextcloud-aio-nextcloud # nextcloud-aio-nextcloud is AIO's web container, you shouldn't change this
+      - NC_PORT=9000 # you shouldn't change this
+      - DB_HOST=nextcloud-aio-database # nextcloud-aio-database is AIO's database container, you shouldn't change this
+      - DB_PORT=5432 # you shouldn't change this
+    depends_on:
+      - nextcloud
+    restart: unless-stopped
+    volumes:
+      - ./calcardbackup:/backup
+      - nextcloud_aio_nextcloud:/nextcloud # nextcloud_aio_nextcloud is AIO's web volume, noted in the volumes section
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    networks:
+      - nextcloud-aio
+
+networks:
+  nextcloud-aio:
+    name: nextcloud-aio # This line is not allowed to be changed as otherwise the created network will not be used by the other containers of AIO
+    driver: bridge
+
+volumes:
+  nextcloud_aio_mastercontainer:
+    name: nextcloud_aio_mastercontainer # This line is not allowed to be changed
+  # AIO makes this volume, but it needs to be here so we can reference it in the nextcloud-nc-backup service
+  nextcloud_aio_nextcloud:
+    name: nextcloud_aio_nextcloud
