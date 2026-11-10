@@ -32,9 +32,7 @@ class ActionReferenceTests(TestCase):
         for quote in ('"', "'"):
             with self.subTest(quote=quote):
                 self.assertEqual(
-                    parse_action_reference(
-                        f"      uses: {quote}actions/checkout@{sha} # v7.0.1{quote}"
-                    ),
+                    parse_action_reference(f"      uses: {quote}actions/checkout@{sha} # v7.0.1{quote}"),
                     ("actions/checkout", sha, "7.0.1"),
                 )
 
