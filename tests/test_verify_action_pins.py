@@ -86,7 +86,9 @@ class ActionReferenceTests(TestCase):
             [(3, f"uses: waja/docker-calcardbackup/.github/workflows/ci.yml@{sha} # v1.2.3")],
         )
         self.assertEqual(
-            parse_action_reference(f"uses: waja/docker-calcardbackup/.github/workflows/ci.yml@{sha} # v1.2.3"),
+            parse_action_reference(
+                f"uses: waja/docker-calcardbackup/.github/workflows/ci.yml@{sha} # v1.2.3"
+            ),
             ("waja/docker-calcardbackup", sha, "1.2.3"),
         )
 
