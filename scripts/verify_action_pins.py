@@ -6,10 +6,13 @@ import json
 import os
 import re
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
+
+import yaml
 
 ACTION = re.compile(
     r"^\s*(?:-\s*)?uses:\s*([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)(?:/[^@\s]+)?@"
@@ -37,7 +40,8 @@ ALLOWED_REPOSITORIES = {
 
 
 def api_json(path: str) -> dict:
-    """Fetch and decode a JSON response from the fixed GitHub API host."""
+    """Fetch public GitHub API JSON with auth fallback and bounded retries."""
+    url = f"https://api.github.com/{path}"
     headers = {
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
@@ -46,12 +50,40 @@ def api_json(path: str) -> dict:
     token = os.environ.get("GITHUB_TOKEN")
     if token:
         headers["Authorization"] = f"Bearer {token}"
-    request = urllib.request.Request(f"https://api.github.com/{path}", headers=headers)
-    try:
-        with urllib.request.urlopen(request, timeout=20) as response:
-            return json.load(response)
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
-        raise RuntimeError(f"GitHub API request failed for {path}: {error}") from error
+
+    for attempt in range(4):
+        request = urllib.request.Request(url, headers=headers)
+        try:
+            with urllib.request.urlopen(request, timeout=20) as response:
+                return json.load(response)
+        except urllib.error.HTTPError as error:
+            body = error.read().decode("utf-8", errors="replace")
+            auth_denied = error.code in (401, 404) or (
+                error.code == 403 and "Resource not accessible" in body
+            )
+            if token and auth_denied:
+                headers.pop("Authorization", None)
+                token = None
+                continue
+            if error.code not in (429, 500, 502, 503, 504) or attempt == 3:
+                raise RuntimeError(
+                    f"GitHub API request failed for {path}: HTTP {error.code}: {body}"
+                ) from error
+            retry_after = error.headers.get("Retry-After")
+            delay = min(int(retry_after), 30) if retry_after and retry_after.isdigit() else 2**attempt
+        except (urllib.error.URLError, TimeoutError) as error:
+            if attempt == 3:
+                raise RuntimeError(
+                    f"GitHub API request failed for {path}: {error}"
+                ) from error
+            delay = 2**attempt
+        except json.JSONDecodeError as error:
+            raise RuntimeError(
+                f"GitHub API returned invalid JSON for {path}: {error}"
+            ) from error
+        time.sleep(delay)
+
+    raise RuntimeError(f"GitHub API request exhausted retries for {path}")
 
 
 def parse_action_reference(line: str) -> tuple[str, str, str] | None:
@@ -79,32 +111,53 @@ def parse_action_reference(line: str) -> tuple[str, str, str] | None:
     return repository, sha, version
 
 
-def workflow_action_lines(lines):
-    """Yield only uses keys belonging to workflow step mappings."""
-    in_steps = False
-    item_indent = None
-    for line_number, line in enumerate(lines, 1):
-        stripped = line.lstrip()
-        indent = len(line) - len(stripped)
-        if not stripped or stripped.startswith("#"):
+def workflow_action_lines(workflow_text: str):
+    """Yield action references from YAML step mappings, preserving line numbers."""
+    document = yaml.compose(workflow_text)
+    if not isinstance(document, yaml.MappingNode):
+        return
+
+    raw_lines = workflow_text.splitlines()
+    jobs = next(
+        (
+            value
+            for key, value in document.value
+            if isinstance(key, yaml.ScalarNode) and key.value == "jobs"
+        ),
+        None,
+    )
+    if not isinstance(jobs, yaml.MappingNode):
+        return
+
+    for _, job in jobs.value:
+        if not isinstance(job, yaml.MappingNode):
             continue
-        if re.match(r"^steps:\s*(?:#.*)?$", stripped):
-            in_steps = True
-            item_indent = indent + 2
+        steps = next(
+            (
+                value
+                for key, value in job.value
+                if isinstance(key, yaml.ScalarNode) and key.value == "steps"
+            ),
+            None,
+        )
+        if not isinstance(steps, yaml.SequenceNode):
             continue
-        if not in_steps:
-            continue
-        if indent <= item_indent - 2:
-            in_steps = False
-            item_indent = None
-            continue
-        if indent == item_indent and stripped.startswith("- "):
-            value = stripped[2:].strip()
-            if value.startswith("uses:"):
-                yield line_number, value
-            continue
-        if indent == item_indent + 2 and stripped.startswith("uses:"):
-            yield line_number, stripped
+        for step in steps.value:
+            if not isinstance(step, yaml.MappingNode):
+                continue
+            for key, value in step.value:
+                if (
+                    isinstance(key, yaml.ScalarNode)
+                    and key.value == "uses"
+                    and isinstance(value, yaml.ScalarNode)
+                ):
+                    line_number = value.start_mark.line + 1
+                    reference = value.value
+                    raw_line = raw_lines[line_number - 1]
+                    comment = re.search(r"\\s+#\\s*v[0-9A-Za-z][0-9A-Za-z._+-]*\\s*$", raw_line)
+                    if comment and "#" not in reference:
+                        reference = f"{reference}{comment.group(0)}"
+                    yield line_number, f"uses: {reference}"
 
 
 def verify_pin(repository: str, sha: str, version: str) -> str | None:
@@ -143,7 +196,7 @@ def main() -> int:
     failures: list[str] = []
     checked = 0
     for path in sorted(Path(".github/workflows").glob("*.y*ml")):
-        for line_number, line in workflow_action_lines(path.read_text().splitlines()):
+        for line_number, line in workflow_action_lines(path.read_text()):
             try:
                 parsed = parse_action_reference(line)
             except ValueError as error:
