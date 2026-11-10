@@ -32,7 +32,7 @@ can be tied unambiguously to the verified tag tree.
 
 ## Why this is a draft
 
-Do not add a hard-coded digest for only the current release, silently skip
+Do not add a hardcoded digest for only the current release, silently skip
 verification when metadata is missing, or fetch an unsigned checksum from the
 same origin and describe that as authenticity verification. Those approaches
 would create a misleading security guarantee and would break unattended
