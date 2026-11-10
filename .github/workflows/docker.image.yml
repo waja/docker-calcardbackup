@@ -45,8 +45,11 @@ jobs:
           bash -n .github/scripts/validate-renovate.sh
           bash -n .github/scripts/classify-renovate-error.sh
           bash -n tests/test_renovate_error_classifier.sh
+          bash -n tests/test_validate_renovate.sh
       - name: Test failure classification
         run: bash tests/test_renovate_error_classifier.sh
+      - name: Test live-validation success and failure paths
+        run: bash tests/test_validate_renovate.sh
       - name: Validate live Codeberg lookup
         run: bash .github/scripts/validate-renovate.sh
   super-linter:
