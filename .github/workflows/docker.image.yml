@@ -31,6 +31,8 @@ jobs:
         with:
           node-version: 24
       - run: node --test tests/renovate.test.cjs
+      - name: Install verifier dependency
+        run: python3 -m pip install PyYAML==6.0.2
       - run: python3 -m unittest discover -s tests -p 'test_*.py'
   renovate-live-validation:
     name: Validate live Renovate Codeberg datasource
