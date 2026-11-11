@@ -53,9 +53,10 @@ user's request or these working agreements.
   current PR head, and resolve or consciously disposition outstanding review
   threads. Pass the checked head SHA as an expected SHA to the merge operation;
   abort if it no longer matches.
-- If an expected review is missing or skipped, establish why. Ask the user
-  before waiving an optional review; never bypass a review or check required
-  by repository or organization policy.
+- If an expected review is missing, skipped, or cannot complete, establish
+  why. For ordinary PRs, proceed without an optional review only after
+  explicit user approval; never bypass a review or check required by
+  repository or organization policy.
 
 ### Implementation and review
 
