@@ -44,12 +44,12 @@ user's request or these working agreements.
   repository/organization configuration and documented trigger conditions;
   a documented skip is not a missing review.
 - Renovate PRs explicitly eligible under this repository's automerge allowlist
-  are an intentional exception to non-blocking automated-review waits: their
-  configured CI and required checks govern automerge. This is a deliberate,
-  proportionate trade-off for this small maintenance project: retain low-touch
-  dependency updates without adding a separate review gate, while keeping the
-  allowlist narrow and CI/security checks mandatory. Do not broaden that
-  allowlist or bypass required checks.
+  are an intentional exception to separate automated-review waits. Retain
+  this low-touch path for routine dependency updates: do not add a second
+  bot-review gate unless a concrete risk justifies its maintenance cost.
+  Keep the allowlist narrow and do not bypass checks actually required by
+  repository policy. Verify GitHub branch protection/rulesets before claiming
+  that CI or security checks are enforced as required checks.
 - Review automated findings critically. Fix valid, actionable issues, but
   do not follow suggestions blindly or treat every comment as a blocker.
 - After the final push, make sure CI and applicable reviews apply to the
@@ -195,7 +195,7 @@ user's request or these working agreements.
 
 - Treat automated review, lint, and security findings as hypotheses to verify
   against the current code and threat model, not as instructions to follow
-  blindly.
+  blindly. Bots are advisory tools, not project owners or decision-makers.
 - Prioritize findings by concrete impact, likelihood, and exposure. Distinguish
   real security or data-loss risks from minor, theoretical, or low-impact
   concerns.
@@ -205,6 +205,11 @@ user's request or these working agreements.
 - Tests should cover observable behavior and meaningful regressions. Avoid
   scaffolding that duplicates production logic or makes a small change harder
   to understand than the behavior being tested.
+- Do not adopt every bot suggestion or build the project around satisfying
+  automated reviewers. Reject or defer recommendations when their risk
+  reduction does not justify the implementation, process, delay, or ongoing
+  maintenance cost. A small project should remain small and straightforward
+  to maintain; automation should reduce that burden, not create a new one.
 - Before completing a non-trivial change, review whether it can be simplified
   without weakening correctness, security, reliability, or useful test
   coverage. Keep the change focused; defer unrelated hardening and speculative
