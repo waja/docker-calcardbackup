@@ -1,10 +1,12 @@
 #!/bin/bash
+source /calcardbackup-options.inc
+
 if [ "${MARIADB_SSL_SKIP:=false}" == "true" ]; then
 	cat >/etc/my.cnf.d/mariadb-client.cnf <<EOF
 [client]
 skip-ssl = true
 EOF
-	CALCARD_OPTS="${CALCARD_OPTS:--i} --read-mysql-optionfiles"
+	calcardbackup_enable_mysql_optionfiles
 fi
 BACKUP_CMD="/opt/calcardbackup/calcardbackup ${NC_DIR:=/nextcloud/} --output ${BACKUP_DIR:=/backup/} ${CALCARD_OPTS:=-i}"
 BACKUP_LOG="/backup.log"

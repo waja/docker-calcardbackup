@@ -70,9 +70,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Test startup option handling
-        shell: bash
-        run: |
-          set -euo pipefail
+        run: bash tests/test_calcard_opts.sh
 
           assignment="$(grep -m1 -E '^[[:space:]]*CALCARD_OPTS=.*--read-mysql-optionfiles' run.sh)"
 
