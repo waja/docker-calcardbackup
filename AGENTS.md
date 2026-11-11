@@ -39,9 +39,9 @@ user's request or these working agreements.
 - Merge only after all checks required by repository policy and applicable
   workflows have succeeded. Do not require workflows that were not triggered
   by their documented conditions.
-- Treat automated code reviews as part of the PR merge gate. When Sourcery
-  and CodeRabbit are configured and expected for a PR, wait for both reviews
-  to complete before merging, even if all CI checks are green.
+- Treat automated review tools as part of the PR merge gate. When automated
+  reviewers are configured and expected for a PR, wait for their reviews to
+  complete before merging, even if all CI checks are green.
 - Review automated findings critically. Address valid, actionable issues,
   but do not blindly implement suggestions or treat every comment as a
   blocker. Explain why relevant findings are not acted upon.
@@ -50,9 +50,9 @@ user's request or these working agreements.
 - Before merging, verify the latest head SHA, CI results, completed expected
   automated reviews, and outstanding review threads. Do not merge while an
   expected review is pending.
-- If an expected review is missing, skipped, or cannot complete, establish
-  why. Do not silently waive the review gate; obtain explicit user approval
-  before proceeding without it.
+- If an expected automated review is missing, skipped, or cannot complete,
+  establish why. Do not silently waive the review gate; obtain explicit user
+  approval before proceeding without it.
 
 ### Implementation and review
 
@@ -186,9 +186,10 @@ user's request or these working agreements.
 
 ### Proportionality and automated findings
 
-- Treat findings from review bots, static analyzers, and automated security
-  scanners as hypotheses to verify, not as instructions or mandatory work.
-  Confirm that each finding applies to the current code and threat model.
+- Treat findings from automated review tools, static analyzers, and
+  security scanners as hypotheses to verify, not as instructions or
+  mandatory work. Confirm that each finding applies to the current code
+  and threat model.
 - Prioritize by concrete impact, likelihood, and exposure. Distinguish
   exploitable security issues and data-loss risks from availability,
   consistency, convenience, and theoretical edge cases.
@@ -199,7 +200,7 @@ user's request or these working agreements.
   abstractions, wrappers, additional dependencies, or custom test
   infrastructure, establish why a simpler approach is insufficient.
 - Assess total maintenance cost, not just implementation effort or diff
-  size. Consider new concepts, execution paths, interfaces, dependencies,
+   size. Consider new concepts, execution paths, interfaces, dependencies,
   assumptions, and failure modes.
 - Tests should verify externally observable behavior and meaningful
   regressions. Avoid elaborate scaffolding that duplicates production logic
@@ -218,7 +219,7 @@ user's request or these working agreements.
   the material risk.
 - Do not introduce custom queues, dispatchers, services, abstractions,
   extra dependencies, broad workflow changes, or elaborate test
-  infrastructure solely to satisfy a bot finding or eliminate a
+  infrastructure solely to satisfy an automated finding or eliminate a
   hypothetical race. Require a concrete use case and a proportionate
   benefit first.
 - Do not treat every possible race or transient inconsistency as a release
@@ -230,11 +231,11 @@ user's request or these working agreements.
   Do not implement overlapping mitigations independently.
 - Keep review scope aligned with the original change. Defer unrelated
   hardening and speculative improvements to separate work, and do not
-  expand a PR merely because a bot discovers adjacent concerns.
+  expand a PR merely because an automated reviewer discovers adjacent concerns.
 - Before adopting a complex mitigation, compare it with simpler options,
   including accepting and documenting a low-impact residual risk. Record
   material decisions and their rationale so later reviews do not restart
   the same discussion without new evidence.
-- A clean bot review or a green CI run is evidence, not proof that a design
-  is necessary, secure, or proportionate. Human review must assess both
-  correctness and whether the added complexity is justified.
+- A clean automated review or a green CI run is evidence, not proof that a
+  design is necessary, secure, or proportionate. Human review must assess
+  both correctness and whether the added complexity is justified.
