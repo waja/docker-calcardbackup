@@ -103,8 +103,8 @@ user's request or these working agreements.
   image build and test jobs, artifact handling, and image publishing.
 - `.github/renovate.json` configures Renovate for Docker and GitHub Actions.
   `.github/dependabot.yml` also configures Dependabot for those ecosystems.
-  Review both configurations before changing dependency automation; do not
-  silently remove or duplicate an existing bot configuration.
+  Their current scopes overlap. Avoid duplicate update PRs by assigning each
+  ecosystem to one bot in a separate dependency-automation change.
 - Workflow helper logic currently lives inline in `.github/workflows/`;
   do not refer to a helper-script directory unless one is added.
 
@@ -127,9 +127,9 @@ user's request or these working agreements.
   repository's dependency automation policy. Do not remove digest pinning
   or broaden automerge rules without an explicit, documented decision.
 - Automerge is a policy decision. Keep Dockerfile patch and digest updates
-  within the configured policy. GitHub Actions automerge is currently limited
-  to the packages explicitly allowlisted in Renovate; review the actual
-  Renovate rules before describing or broadening that policy.
+  within the configured policy. For GitHub Actions, only explicitly
+  allowlisted packages and approved update types should be eligible; verify
+  the actual Renovate rules before describing that policy as enforced.
 - Preserve image provenance labels and build metadata unless a deliberate
   change requires otherwise.
 - Treat publishing as a privileged operation. Inspect the actual event
