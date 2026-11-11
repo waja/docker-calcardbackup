@@ -56,6 +56,11 @@ user's request or these working agreements.
   current PR head, and resolve or consciously disposition outstanding review
   threads. Pass the checked head SHA as an expected SHA to the merge operation;
   abort if it no longer matches.
+- Immediately before merging, re-fetch the PR head SHA, expected review status,
+  and unresolved review threads. If the head changed, a new review arrived, or
+  a thread was added or reopened since the previous assessment, stop and
+  reassess before merging. Do not introduce a separate workflow or merge-gate
+  mechanism solely for this check.
 - If an expected review is missing, skipped, or cannot complete, establish
   why. For ordinary PRs, proceed without an optional review only after
   explicit user approval; never bypass a review or check required by
