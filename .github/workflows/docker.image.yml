@@ -397,21 +397,21 @@ jobs:
           TAGS=""
           if [ "$DOCKERHUB_USERNAME" != '' ] && [ "$DOCKERHUB_TOKEN" != '' ]; then
             if [ "$REALEASE_TAG" = "true" ]; then
-              TAGS="$TAGS_INT"
+              TAGS="$TAGS_INT,${DOCKER_IMAGE}:latest"
             else
               TAGS="$TAGS_INT"
             fi
           fi
           if [ "$GITHUB_TOKEN" != '' ]; then
             if [ "$REALEASE_TAG" = "true" ]; then
-              TAGS="$TAGS,ghcr.io/$TAGS_INT"
+              TAGS="$TAGS,ghcr.io/$TAGS_INT,ghcr.io/${DOCKER_IMAGE}:latest"
             else
               TAGS="$TAGS,ghcr.io/$TAGS_INT"
             fi
           fi
           if [ "$QUAY_USERNAME" != '' ] && [ "$QUAY_TOKEN" != '' ]; then
             if [ "$REALEASE_TAG" = "true" ]; then
-              TAGS="$TAGS,quay.io/$TAGS_INT"
+              TAGS="$TAGS,quay.io/$TAGS_INT,quay.io/${DOCKER_IMAGE}:latest"
             else
               TAGS="$TAGS,quay.io/$TAGS_INT"
             fi
