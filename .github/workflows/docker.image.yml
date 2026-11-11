@@ -329,7 +329,7 @@ jobs:
           sarif_file: "sarif-reports"
   release-docker:
     name: Release Docker images
-    if: github.event_name == 'push' || github.event_name == 'schedule'
+    if: github.event_name != 'pull_request'
     # Serialize runs for the same ref; never cancel a publication in progress.
     # A newer queued run follows and publishes the current ref after the older run.
     concurrency:
