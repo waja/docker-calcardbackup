@@ -1,6 +1,14 @@
 #!/bin/bash
 # shellcheck source=lib/calcardbackup-options.bashlib
-source /opt/calcardbackup/lib/calcardbackup-options.bashlib
+OPTIONS_LIB="/opt/calcardbackup/lib/calcardbackup-options.bashlib"
+if [[ ! -r "$OPTIONS_LIB" ]]; then
+	OPTIONS_LIB="$(dirname "${BASH_SOURCE[0]}")/lib/calcardbackup-options.bashlib"
+fi
+if [[ ! -r "$OPTIONS_LIB" ]]; then
+	echo "Cannot read calcardbackup options library: $OPTIONS_LIB" >&2
+	exit 1
+fi
+source "$OPTIONS_LIB"
 
 if [ "${MARIADB_SSL_SKIP:=false}" == "true" ]; then
 	MARIADB_CLIENT_CNF="${MARIADB_CLIENT_CNF:-/etc/my.cnf.d/mariadb-client.cnf}"
