@@ -1,5 +1,5 @@
 #!/bin/bash
-source /lib/calcardbackup-options.bash
+source /opt/calcardbackup/lib/calcardbackup-options.bash
 
 if [ "${MARIADB_SSL_SKIP:=false}" == "true" ]; then
 	cat >/etc/my.cnf.d/mariadb-client.cnf <<EOF
