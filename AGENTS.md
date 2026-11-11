@@ -200,7 +200,7 @@ user's request or these working agreements.
   abstractions, wrappers, additional dependencies, or custom test
   infrastructure, establish why a simpler approach is insufficient.
 - Assess total maintenance cost, not just implementation effort or diff
-   size. Consider new concepts, execution paths, interfaces, dependencies,
+  size. Consider new concepts, execution paths, interfaces, dependencies,
   assumptions, and failure modes.
 - Tests should verify externally observable behavior and meaningful
   regressions. Avoid elaborate scaffolding that duplicates production logic
