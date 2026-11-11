@@ -207,7 +207,7 @@ user's request or these working agreements.
   improvements.
 - For non-trivial mitigations, state the problem addressed and expected
   benefit; weigh these against operational costs, total maintenance costs
-  (including added concepts, execution paths, interfaces, and dependencies),
+  (including added concepts, execution paths, interfaces, wrappers, and dependencies),
   and any new failure modes.
 - When several findings have the same cause, address them together rather
   than adding overlapping mitigations. Accept and document low-impact
