@@ -45,7 +45,10 @@ user's request or these working agreements.
   a documented skip is not a missing review.
 - Renovate PRs explicitly eligible under this repository's automerge allowlist
   are an intentional exception to non-blocking automated-review waits: their
-  configured CI and required checks govern automerge. Do not broaden that
+  configured CI and required checks govern automerge. This is a deliberate,
+  proportionate trade-off for this small maintenance project: retain low-touch
+  dependency updates without adding a separate review gate, while keeping the
+  allowlist narrow and CI/security checks mandatory. Do not broaden that
   allowlist or bypass required checks.
 - Review automated findings critically. Fix valid, actionable issues, but
   do not follow suggestions blindly or treat every comment as a blocker.
