@@ -39,46 +39,18 @@ user's request or these working agreements.
 - Merge only after all checks required by repository policy and applicable
   workflows have succeeded. Do not require workflows that were not triggered
   by their documented conditions.
-- Treat automated review tools as part of the PR merge gate. Determine
-  which reviewers are expected for a PR from the applicable repository or
-  organization integration configuration and each tool's documented event,
-  branch, and draft-PR conditions. Do not assume every installed reviewer
-  runs on every PR. A review skipped by an applicable, documented condition
-  is not a missing review; if the applicable configuration or trigger
-  conditions cannot be established, ask the user rather than guessing.
-- Wait for all reviews required by repository or organization policy and
-  all other reviews expected under the applicable integration configuration
-  to complete before merging, even if all CI checks are green. An explicit
-  user approval may waive only an optional review that is not mandatory under
-  repository or organization policy; it cannot override a required status
-  check or mandatory review rule.
-- Review automated findings critically. Address valid, actionable issues,
-  but do not blindly implement suggestions or treat every comment as a
-  blocker. Explain why relevant findings are not acted upon.
-- After pushing new commits, ensure expected automated reviews have completed
-  against the updated PR head. Reviews of an earlier commit are insufficient.
-- Before merging, record the exact PR head SHA for which CI and expected
-  automated reviews were verified. The merge operation must atomically enforce
-  that exact expected head SHA. If the merge interface does not support an
-  atomic expected-head guard, do not merge until an equivalent repository
-  control prevents concurrent head updates; a fetch immediately before merge
-  alone is not sufficient. If the head changed, abort the merge and restart
-  validation and reviews for the new head.
-- Before merging, also verify CI results, completed expected automated
-  reviews, and outstanding review threads. Do not merge while a mandatory or
-  expected review is pending unless the optional-review exception above
-  applies.
-- If an expected automated review is missing, skipped, or cannot complete,
-  establish why. Do not silently waive the review gate. Explicit user approval
-  is required to waive an optional review, but cannot waive a mandatory
-  repository or organization gate.
-- This review gate reduces the risk of merging changes that have not received
-  the configured independent review. Its costs are additional PR latency,
-  occasional delays when a review service is unavailable, and the need to
-  inspect integration triggers and review results. It can also create false
-  blockers when a tool is misconfigured or its trigger conditions are
-  misunderstood; verify the configuration and distinguish optional reviews
-  from mandatory repository policy rather than weakening required checks.
+- Wait for CI and the automated reviews configured and expected for the
+  PR to complete before merging. Determine expected reviewers from the
+  repository/organization configuration and their documented trigger
+  conditions; a documented skip is not a missing review.
+- Review automated findings critically. Fix valid, actionable issues, but
+  do not follow suggestions blindly or treat every comment as a blocker.
+- After the final push, make sure the reviews apply to the current PR head.
+  Before merging, verify that the head SHA is still the one that was checked
+  and reviewed; use the merge tool's expected-SHA guard when available.
+- If an expected review is missing or skipped, establish why. Ask the user
+  before waiving an optional review; never bypass a review or check required
+  by repository or organization policy.
 
 ### Implementation and review
 
@@ -212,56 +184,25 @@ user's request or these working agreements.
 
 ### Proportionality and automated findings
 
-- Treat findings from automated review tools, static analyzers, and
-  security scanners as hypotheses to verify, not as instructions or
-  mandatory work. Confirm that each finding applies to the current code
-  and threat model.
-- Prioritize by concrete impact, likelihood, and exposure. Distinguish
-  exploitable security issues and data-loss risks from availability,
-  consistency, convenience, and theoretical edge cases.
-- Treat maintainability and proportionality as design requirements, not
-  secondary considerations. The complexity of a solution must be justified
-  by the problem's impact, likelihood, and risk.
-- Start with the simplest viable solution. Before introducing helper modules,
-  abstractions, wrappers, additional dependencies, or custom test
-  infrastructure, establish why a simpler approach is insufficient.
-- Assess total maintenance cost, not just implementation effort or diff
-  size. Consider new concepts, execution paths, interfaces, dependencies,
-  assumptions, and failure modes.
-- Tests should verify externally observable behavior and meaningful
-  regressions. Avoid elaborate scaffolding that duplicates production logic
-  or makes a small change harder to understand than the behavior being tested.
-- Every additional abstraction or mechanism must provide a concrete benefit
-  that justifies its ongoing maintenance cost. Remove temporary scaffolding
-  and unnecessary complexity before considering a PR complete.
-- Prefer code that a future maintainer can understand without reconstructing
-  a chain of helpers, indirection, or implicit assumptions.
-- Before finalizing a non-trivial change, explicitly reconsider whether the
-  implementation can be simplified without sacrificing correctness,
-  security, reliability, or meaningful test coverage.
-- For every non-trivial mitigation, state the problem it prevents, the
-  expected benefit, its operational and maintenance cost, and any new
-  failure modes it introduces. Prefer the smallest solution that addresses
-  the material risk.
-- Do not introduce custom queues, dispatchers, services, abstractions,
-  extra dependencies, broad workflow changes, or elaborate test
-  infrastructure solely to satisfy an automated finding or eliminate a
-  hypothetical race. Require a concrete use case and a proportionate
-  benefit first.
-- Do not treat every possible race or transient inconsistency as a release
-  blocker. Establish whether it can cause a security breach, data loss, or
-  meaningful user impact; otherwise document the residual risk and why it
-  is accepted.
-- When several findings describe the same underlying cause, consolidate
-  them into one problem statement and one proportionate remediation.
-  Do not implement overlapping mitigations independently.
-- Keep review scope aligned with the original change. Defer unrelated
-  hardening and speculative improvements to separate work, and do not
-  expand a PR merely because an automated reviewer discovers adjacent concerns.
-- Before adopting a complex mitigation, compare it with simpler options,
-  including accepting and documenting a low-impact residual risk. Record
-  material decisions and their rationale so later reviews do not restart
-  the same discussion without new evidence.
-- A clean automated review or a green CI run is evidence, not proof that a
-  design is necessary, secure, or proportionate. Human review must assess
-  both correctness and whether the added complexity is justified.
+- Treat automated review, lint, and security findings as hypotheses to verify
+  against the current code and threat model, not as instructions to follow
+  blindly.
+- Prioritize findings by concrete impact, likelihood, and exposure. Distinguish
+  real security or data-loss risks from minor, theoretical, or low-impact
+  concerns.
+- Prefer the simplest solution that reliably solves the problem. Add
+  abstractions, dependencies, helpers, or test infrastructure only when their
+  concrete benefit justifies the extra complexity and maintenance.
+- Tests should cover observable behavior and meaningful regressions. Avoid
+  scaffolding that duplicates production logic or makes a small change harder
+  to understand than the behavior being tested.
+- Before completing a non-trivial change, review whether it can be simplified
+  without weakening correctness, security, reliability, or useful test
+  coverage. Keep the change focused; defer unrelated hardening and speculative
+  improvements.
+- When several findings have the same cause, address them together rather
+  than adding overlapping mitigations. Accept and document low-impact
+  residual risks when fixing them would cost more than the risk warrants.
+- Apply the same proportionality to process and review rules: add gates or
+  safeguards when they address a meaningful risk, and account for the delay
+  and maintenance they introduce.
