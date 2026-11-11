@@ -45,9 +45,10 @@ user's request or these working agreements.
   conditions; a documented skip is not a missing review.
 - Review automated findings critically. Fix valid, actionable issues, but
   do not follow suggestions blindly or treat every comment as a blocker.
-- After the final push, make sure the reviews apply to the current PR head.
-  Before merging, verify that the head SHA is still the one that was checked
-  and reviewed; use the merge tool's expected-SHA guard when available.
+- After the final push, make sure CI and reviews apply to the current PR
+  head, and resolve or consciously disposition outstanding review threads.
+  Merge only the exact commit that was checked and reviewed; abort if the PR
+  head has changed.
 - If an expected review is missing or skipped, establish why. Ask the user
   before waiving an optional review; never bypass a review or check required
   by repository or organization policy.
