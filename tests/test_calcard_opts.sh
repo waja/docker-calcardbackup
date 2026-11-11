@@ -2,8 +2,8 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# shellcheck source=../calcardbackup-options.inc
-source "$repo_root/calcardbackup-options.inc"
+# shellcheck source=../lib/calcardbackup-options.sh
+source "$repo_root/lib/calcardbackup-options.sh"
 
 run_case() (
 	local input="$1"

@@ -26,7 +26,7 @@ LABEL maintainer="Jan Wagner <waja@cyconet.org>" \
     org.label-schema.vcs-branch="${VCS_BRANCH:-unknown}" \
     org.opencontainers.image.source="https://github.com/waja/docker-calcardbackup"
 
-COPY ["run.sh", "calcardbackup-options.inc", "/"]
+COPY ["run.sh", "lib/calcardbackup-options.sh", "/"]
 
 # hadolint ignore=DL3017,DL3018
 RUN apk --no-cache update && apk --no-cache upgrade && \
