@@ -39,17 +39,28 @@ user's request or these working agreements.
 - Merge only after all checks required by repository policy and applicable
   workflows have succeeded. Do not require workflows that were not triggered
   by their documented conditions.
-- Treat automated review tools as part of the PR merge gate. When automated
-  reviewers are configured and expected for a PR, wait for their reviews to
-  complete before merging, even if all CI checks are green.
+- Treat automated review tools as part of the PR merge gate. Determine
+  which reviewers are expected for a PR from the applicable repository or
+  organization integration configuration and each tool's documented event,
+  branch, and draft-PR conditions. Do not assume every installed reviewer
+  runs on every PR. A review skipped by an applicable, documented condition
+  is not a missing review; if the applicable configuration or trigger
+  conditions cannot be established, ask the user rather than guessing.
+- Wait for all reviews expected under those conditions to complete before
+  merging, even if all CI checks are green.
 - Review automated findings critically. Address valid, actionable issues,
   but do not blindly implement suggestions or treat every comment as a
   blocker. Explain why relevant findings are not acted upon.
 - After pushing new commits, ensure expected automated reviews have completed
   against the updated PR head. Reviews of an earlier commit are insufficient.
-- Before merging, verify the latest head SHA, CI results, completed expected
-  automated reviews, and outstanding review threads. Do not merge while an
-  expected review is pending.
+- Before merging, record the exact PR head SHA for which CI and expected
+  automated reviews were verified. Immediately before merging, fetch the PR
+  again and confirm its head SHA is unchanged. Use an atomic expected-head-SHA
+  merge guard where the merge interface supports it. If the head changed,
+  abort the merge and restart validation and reviews for the new head.
+- Before merging, also verify CI results, completed expected automated
+  reviews, and outstanding review threads. Do not merge while an expected
+  review is pending.
 - If an expected automated review is missing, skipped, or cannot complete,
   establish why. Do not silently waive the review gate; obtain explicit user
   approval before proceeding without it.
