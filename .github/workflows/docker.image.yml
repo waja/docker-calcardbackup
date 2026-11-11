@@ -329,11 +329,15 @@ jobs:
           sarif_file: "sarif-reports"
   release-docker:
     name: Release Docker images
-    if: github.event_name != 'pull_request'
-    # Serialize runs for the same ref; never cancel a publication in progress.
-    # A newer queued run follows and publishes the current ref after the older run.
+    # Registry credentials are available only to trusted publishing events.
+    # Only the repository owner may publish release tags or dispatch a release.
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.ref_type != 'tag' || github.actor == 'waja') &&
+      (github.event_name != 'workflow_dispatch' || github.actor == 'waja')
+    # All registry writes share one lock because release tags also update latest.
     concurrency:
-      group: docker-release-${{ github.event_name == 'schedule' && 'nightly' || github.ref }}
+      group: docker-publish
       cancel-in-progress: false
     needs:
       - test
