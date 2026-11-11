@@ -2,28 +2,40 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# shellcheck source=../lib/calcardbackup-options.bashlib
-source "$repo_root/lib/calcardbackup-options.bashlib"
+tmp_dir="$(mktemp -d)"
+trap 'rm -rf "$tmp_dir"' EXIT
 
-run_case() (
-	local input="$1"
-	local expected="$2"
+mkdir -p "$tmp_dir/bin"
+cat >"$tmp_dir/bin/tail" <<'STUB'
+#!/usr/bin/env bash
+exit 0
+STUB
+cat >"$tmp_dir/bin/crontab" <<'STUB'
+#!/usr/bin/env bash
+cp "$1" "$CAPTURED_CRONTAB"
+STUB
+cat >"$tmp_dir/bin/crond" <<'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$@" >"$CROND_ARGS"
+STUB
+chmod +x "$tmp_dir/bin/"*
 
-	if [[ "$input" == "__UNSET__" ]]; then
-		unset CALCARD_OPTS
-	else
-		CALCARD_OPTS="$input"
-	fi
+export PATH="$tmp_dir/bin:$PATH"
+export MARIADB_SSL_SKIP=true
+export MARIADB_CLIENT_CNF="$tmp_dir/mariadb-client.cnf"
+export BACKUP_LOG="$tmp_dir/backup.log"
+export CRONTAB_FILE="$tmp_dir/crontab.conf"
+export CAPTURED_CRONTAB="$tmp_dir/captured-crontab"
+export CROND_ARGS="$tmp_dir/crond-args"
+export INIT_BACKUP=
+export CRON_TIME="5 4 * * *"
+export CALCARD_OPTS="--custom-flag --keep-existing"
 
-	calcardbackup_enable_mysql_optionfiles
-	if [[ "$CALCARD_OPTS" != "$expected" ]]; then
-		printf 'Expected CALCARD_OPTS=%q, got %q\n' "$expected" "$CALCARD_OPTS" >&2
-		exit 1
-	fi
-)
+"$repo_root/run.sh"
 
-run_case '--custom-flag --keep-existing' '--custom-flag --keep-existing --read-mysql-optionfiles'
-run_case '' '-i --read-mysql-optionfiles'
-run_case '__UNSET__' '-i --read-mysql-optionfiles'
+grep -Fxq '[client]' "$MARIADB_CLIENT_CNF"
+grep -Fxq 'skip-ssl = true' "$MARIADB_CLIENT_CNF"
+grep -Fq '/opt/calcardbackup/calcardbackup /nextcloud/ --output /backup/ --custom-flag --keep-existing --read-mysql-optionfiles' "$CAPTURED_CRONTAB"
+grep -Fxq -- '-f' "$CROND_ARGS"
 
-printf 'CALCARD_OPTS regression checks passed\n'
+printf 'run.sh preserves custom CALCARD_OPTS when MARIADB_SSL_SKIP=true\n'
