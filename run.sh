@@ -4,7 +4,7 @@ if [ "${MARIADB_SSL_SKIP:=false}" == "true" ]; then
 [client]
 skip-ssl = true
 EOF
-	CALCARD_OPTS="${CALCARD_OPT:=-i} --read-mysql-optionfiles"
+	CALCARD_OPTS="${CALCARD_OPTS:--i} --read-mysql-optionfiles"
 fi
 BACKUP_CMD="/opt/calcardbackup/calcardbackup ${NC_DIR:=/nextcloud/} --output ${BACKUP_DIR:=/backup/} ${CALCARD_OPTS:=-i}"
 BACKUP_LOG="/backup.log"
