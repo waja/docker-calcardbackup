@@ -1,15 +1,28 @@
 #!/bin/bash
+# shellcheck source=lib/calcardbackup-options.bashlib
+OPTIONS_LIB="/opt/calcardbackup/lib/calcardbackup-options.bashlib"
+if [[ ! -r "$OPTIONS_LIB" ]]; then
+	OPTIONS_LIB="$(dirname "${BASH_SOURCE[0]}")/lib/calcardbackup-options.bashlib"
+fi
+if [[ ! -r "$OPTIONS_LIB" ]]; then
+	echo "Cannot read calcardbackup options library: $OPTIONS_LIB" >&2
+	exit 1
+fi
+source "$OPTIONS_LIB"
+
 if [ "${MARIADB_SSL_SKIP:=false}" == "true" ]; then
-	cat >/etc/my.cnf.d/mariadb-client.cnf <<EOF
+	MARIADB_CLIENT_CNF="${MARIADB_CLIENT_CNF:-/etc/my.cnf.d/mariadb-client.cnf}"
+	mkdir -p "$(dirname "$MARIADB_CLIENT_CNF")"
+	cat >"$MARIADB_CLIENT_CNF" <<EOF
 [client]
 skip-ssl = true
 EOF
-	CALCARD_OPTS="${CALCARD_OPT:=-i} --read-mysql-optionfiles"
+	calcardbackup_enable_mysql_optionfiles
 fi
 BACKUP_CMD="/opt/calcardbackup/calcardbackup ${NC_DIR:=/nextcloud/} --output ${BACKUP_DIR:=/backup/} ${CALCARD_OPTS:=-i}"
-BACKUP_LOG="/backup.log"
-touch ${BACKUP_LOG}
-tail -F ${BACKUP_LOG} &
+BACKUP_LOG="${BACKUP_LOG:-/backup.log}"
+touch "${BACKUP_LOG}"
+tail -F "${BACKUP_LOG}" &
 
 if [ -n "${INIT_BACKUP}" ]; then
 	echo "=> Create a backup on the startup"
@@ -25,10 +38,11 @@ if [ -n "${INIT_BACKUP}" ]; then
 			sleep 1
 		done
 	fi
-	${BACKUP_CMD} >>${BACKUP_LOG} 2>&1
+	${BACKUP_CMD} >>"${BACKUP_LOG}" 2>&1
 fi
 
-echo "${CRON_TIME:=5 4 * * *} ${BACKUP_CMD} >> ${BACKUP_LOG} 2>&1" >/crontab.conf
-crontab /crontab.conf
+CRONTAB_FILE="${CRONTAB_FILE:-/crontab.conf}"
+echo "${CRON_TIME:=5 4 * * *} ${BACKUP_CMD} >> ${BACKUP_LOG} 2>&1" >"$CRONTAB_FILE"
+crontab "$CRONTAB_FILE"
 echo "=> Running cron task manager"
 exec crond -f

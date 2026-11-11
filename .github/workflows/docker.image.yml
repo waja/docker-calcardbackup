@@ -69,6 +69,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - name: Test startup option handling
+        run: bash tests/test_calcard_opts.sh
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
         with:
