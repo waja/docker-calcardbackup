@@ -330,9 +330,11 @@ jobs:
   release-docker:
     name: Release Docker images
     if: github.event_name == 'push' || github.event_name == 'schedule'
+    # Serialize runs for the same ref; never cancel a publication in progress.
+    # A newer queued run follows and publishes the current ref after the older run.
     concurrency:
       group: docker-release-${{ github.event_name == 'schedule' && 'nightly' || github.ref }}
-      cancel-in-progress: true
+      cancel-in-progress: false
     needs:
       - test
       - dockle
