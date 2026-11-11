@@ -46,24 +46,39 @@ user's request or these working agreements.
   runs on every PR. A review skipped by an applicable, documented condition
   is not a missing review; if the applicable configuration or trigger
   conditions cannot be established, ask the user rather than guessing.
-- Wait for all reviews expected under those conditions to complete before
-  merging, even if all CI checks are green.
+- Wait for all reviews required by repository or organization policy and
+  all other reviews expected under the applicable integration configuration
+  to complete before merging, even if all CI checks are green. An explicit
+  user approval may waive only an optional review that is not mandatory under
+  repository or organization policy; it cannot override a required status
+  check or mandatory review rule.
 - Review automated findings critically. Address valid, actionable issues,
   but do not blindly implement suggestions or treat every comment as a
   blocker. Explain why relevant findings are not acted upon.
 - After pushing new commits, ensure expected automated reviews have completed
   against the updated PR head. Reviews of an earlier commit are insufficient.
 - Before merging, record the exact PR head SHA for which CI and expected
-  automated reviews were verified. Immediately before merging, fetch the PR
-  again and confirm its head SHA is unchanged. Use an atomic expected-head-SHA
-  merge guard where the merge interface supports it. If the head changed,
-  abort the merge and restart validation and reviews for the new head.
+  automated reviews were verified. The merge operation must atomically enforce
+  that exact expected head SHA. If the merge interface does not support an
+  atomic expected-head guard, do not merge until an equivalent repository
+  control prevents concurrent head updates; a fetch immediately before merge
+  alone is not sufficient. If the head changed, abort the merge and restart
+  validation and reviews for the new head.
 - Before merging, also verify CI results, completed expected automated
-  reviews, and outstanding review threads. Do not merge while an expected
-  review is pending.
+  reviews, and outstanding review threads. Do not merge while a mandatory or
+  expected review is pending unless the optional-review exception above
+  applies.
 - If an expected automated review is missing, skipped, or cannot complete,
-  establish why. Do not silently waive the review gate; obtain explicit user
-  approval before proceeding without it.
+  establish why. Do not silently waive the review gate. Explicit user approval
+  is required to waive an optional review, but cannot waive a mandatory
+  repository or organization gate.
+- This review gate reduces the risk of merging changes that have not received
+  the configured independent review. Its costs are additional PR latency,
+  occasional delays when a review service is unavailable, and the need to
+  inspect integration triggers and review results. It can also create false
+  blockers when a tool is misconfigured or its trigger conditions are
+  misunderstood; verify the configuration and distinguish optional reviews
+  from mandatory repository policy rather than weakening required checks.
 
 ### Implementation and review
 
