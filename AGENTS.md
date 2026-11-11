@@ -205,9 +205,10 @@ user's request or these working agreements.
   without weakening correctness, security, reliability, or useful test
   coverage. Keep the change focused; defer unrelated hardening and speculative
   improvements.
-- For non-trivial changes, weigh the problem and expected benefit against
-  operational cost and total maintenance cost, including added concepts,
-  execution paths, interfaces, dependencies, and failure modes.
+- For non-trivial mitigations, state the problem addressed and expected
+  benefit; weigh these against operational costs, total maintenance costs
+  (including added concepts, execution paths, interfaces, and dependencies),
+  and any new failure modes.
 - When several findings have the same cause, address them together rather
   than adding overlapping mitigations. Accept and document low-impact
   residual risks when fixing them would cost more than the risk warrants.
