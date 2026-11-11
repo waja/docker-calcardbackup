@@ -26,15 +26,17 @@ LABEL maintainer="Jan Wagner <waja@cyconet.org>" \
     org.label-schema.vcs-branch="${VCS_BRANCH:-unknown}" \
     org.opencontainers.image.source="https://github.com/waja/docker-calcardbackup"
 
-COPY ["run.sh", "/"]
-COPY ["lib/calcardbackup-options.bash", "/lib/"]
+COPY ["run.sh", "/opt/calcardbackup/bin/run.sh"]
+COPY ["lib/calcardbackup-options.bash", "/opt/calcardbackup/lib/calcardbackup-options.bash"]
 
 # hadolint ignore=DL3017,DL3018
 RUN apk --no-cache update && apk --no-cache upgrade && \
   # Install dependencies
   apk --no-cache add --virtual build-dependencies ca-certificates tar curl jq && \
   # Create directory
-  mkdir -p /opt/calcardbackup
+  mkdir -p /opt/calcardbackup && \
+  # Keep the established container entrypoint as a compatibility symlink
+  ln -s /opt/calcardbackup/bin/run.sh /run.sh
 WORKDIR /opt/calcardbackup
 # Download latest release
 SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
