@@ -133,7 +133,7 @@ user's request or these working agreements.
   document it in `README.md`, and update relevant Compose examples.
 - Preserve existing semantics and defaults for `INIT_BACKUP`,
   `CRON_TIME`, `NC_HOST`, `NC_PORT`, `DB_HOST`, `DB_PORT`,
-  `BACKUP_DIR`, `NC_DIR`, `CALCARDB_OPTS`, and
+  `BACKUP_DIR`, `NC_DIR`, `CALCARD_OPTS`, and
   `MARIADB_SSL_SKIP`.
 - Do not put real passwords or deployment-specific hostnames in Compose
   examples. Use obvious placeholders and state that credentials must change.
