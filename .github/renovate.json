@@ -5,7 +5,9 @@
     {
       "customType": "regex",
       "managerFilePatterns": ["/^Dockerfile$/"],
-      "matchStrings": ["ENV CALCARDBACKUP_VERSION\\s+(?<currentValue>[^\\s]+)"],
+      "matchStrings": [
+        "(?:^|\\r?\\n)ARG[ \\t]+CALCARDBACKUP_VERSION=(?<currentValue>[^ \\t\\r\\n#]+)"
+      ],
       "depNameTemplate": "BernieO/calcardbackup",
       "packageNameTemplate": "BernieO/calcardbackup",
       "datasourceTemplate": "forgejo-tags",
