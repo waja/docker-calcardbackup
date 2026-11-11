@@ -39,16 +39,20 @@ user's request or these working agreements.
 - Merge only after all checks required by repository policy and applicable
   workflows have succeeded. Do not require workflows that were not triggered
   by their documented conditions.
-- Wait for CI and the automated reviews configured and expected for the
-  PR to complete before merging. Determine expected reviewers from the
-  repository/organization configuration and their documented trigger
-  conditions; a documented skip is not a missing review.
+- For ordinary PRs, wait for the automated reviews configured and expected
+  for that PR to complete before merging. Determine expected reviewers from
+  repository/organization configuration and documented trigger conditions;
+  a documented skip is not a missing review.
+- Renovate PRs explicitly eligible under this repository's automerge allowlist
+  are an intentional exception to non-blocking automated-review waits: their
+  configured CI and required checks govern automerge. Do not broaden that
+  allowlist or bypass required checks.
 - Review automated findings critically. Fix valid, actionable issues, but
   do not follow suggestions blindly or treat every comment as a blocker.
-- After the final push, make sure CI and reviews apply to the current PR
-  head, and resolve or consciously disposition outstanding review threads.
-  Pass the checked head SHA as an expected SHA to the merge operation; abort
-  if it no longer matches.
+- After the final push, make sure CI and applicable reviews apply to the
+  current PR head, and resolve or consciously disposition outstanding review
+  threads. Pass the checked head SHA as an expected SHA to the merge operation;
+  abort if it no longer matches.
 - If an expected review is missing or skipped, establish why. Ask the user
   before waiving an optional review; never bypass a review or check required
   by repository or organization policy.
@@ -129,7 +133,7 @@ user's request or these working agreements.
   document it in `README.md`, and update relevant Compose examples.
 - Preserve existing semantics and defaults for `INIT_BACKUP`,
   `CRON_TIME`, `NC_HOST`, `NC_PORT`, `DB_HOST`, `DB_PORT`,
-  `BACKUP_DIR`, `NC_DIR`, `CALCARD_OPTS`, and
+  `BACKUP_DIR`, `NC_DIR`, `CALCARDB_OPTS`, and
   `MARIADB_SSL_SKIP`.
 - Do not put real passwords or deployment-specific hostnames in Compose
   examples. Use obvious placeholders and state that credentials must change.
@@ -201,6 +205,9 @@ user's request or these working agreements.
   without weakening correctness, security, reliability, or useful test
   coverage. Keep the change focused; defer unrelated hardening and speculative
   improvements.
+- For non-trivial changes, weigh the problem and expected benefit against
+  operational cost and total maintenance cost, including added concepts,
+  execution paths, interfaces, dependencies, and failure modes.
 - When several findings have the same cause, address them together rather
   than adding overlapping mitigations. Accept and document low-impact
   residual risks when fixing them would cost more than the risk warrants.
