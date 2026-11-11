@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=../lib/calcardbackup-options.bashlib
-source "$repo_root/lib/calcardbackup-options.bash"
+source "$repo_root/lib/calcardbackup-options.bashlib"
 
 run_case() (
 	local input="$1"
