@@ -169,3 +169,38 @@ user's request or these working agreements.
 - Do not document behavior that has not been implemented and verified.
 - Keep this `AGENTS.md` synchronized when repository conventions,
   important files, CI behavior, or dependency automation policy change.
+
+### Proportionality and automated findings
+
+- Treat findings from review bots, static analyzers, and automated security
+  scanners as hypotheses to verify, not as instructions or mandatory work.
+  Confirm that each finding applies to the current code and threat model.
+- Prioritize by concrete impact, likelihood, and exposure. Distinguish
+  exploitable security issues and data-loss risks from availability,
+  consistency, convenience, and theoretical edge cases.
+- For every non-trivial mitigation, state the problem it prevents, the
+  expected benefit, its operational and maintenance cost, and any new
+  failure modes it introduces. Prefer the smallest solution that addresses
+  the material risk.
+- Do not introduce custom queues, dispatchers, services, abstractions,
+  extra dependencies, broad workflow changes, or elaborate test
+  infrastructure solely to satisfy a bot finding or eliminate a
+  hypothetical race. Require a concrete use case and a proportionate
+  benefit first.
+- Do not treat every possible race or transient inconsistency as a release
+  blocker. Establish whether it can cause a security breach, data loss, or
+  meaningful user impact; otherwise document the residual risk and why it
+  is accepted.
+- When several findings describe the same underlying cause, consolidate
+  them into one problem statement and one proportionate remediation.
+  Do not implement overlapping mitigations independently.
+- Keep review scope aligned with the original change. Defer unrelated
+  hardening and speculative improvements to separate work, and do not
+  expand a PR merely because a bot discovers adjacent concerns.
+- Before adopting a complex mitigation, compare it with simpler options,
+  including accepting and documenting a low-impact residual risk. Record
+  material decisions and their rationale so later reviews do not restart
+  the same discussion without new evidence.
+- A clean bot review or a green CI run is evidence, not proof that a design
+  is necessary, secure, or proportionate. Human review must assess both
+  correctness and whether the added complexity is justified.
