@@ -47,8 +47,8 @@ user's request or these working agreements.
   do not follow suggestions blindly or treat every comment as a blocker.
 - After the final push, make sure CI and reviews apply to the current PR
   head, and resolve or consciously disposition outstanding review threads.
-  Merge only the exact commit that was checked and reviewed; abort if the PR
-  head has changed.
+  Pass the checked head SHA as an expected SHA to the merge operation; abort
+  if it no longer matches.
 - If an expected review is missing or skipped, establish why. Ask the user
   before waiving an optional review; never bypass a review or check required
   by repository or organization policy.
@@ -204,6 +204,8 @@ user's request or these working agreements.
 - When several findings have the same cause, address them together rather
   than adding overlapping mitigations. Accept and document low-impact
   residual risks when fixing them would cost more than the risk warrants.
+  Briefly record the rationale for material trade-offs so the same decision
+  is not revisited without new evidence.
 - Apply the same proportionality to process and review rules: add gates or
   safeguards when they address a meaningful risk, and account for the delay
   and maintenance they introduce.
