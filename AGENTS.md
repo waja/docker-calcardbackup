@@ -39,6 +39,20 @@ user's request or these working agreements.
 - Merge only after all checks required by repository policy and applicable
   workflows have succeeded. Do not require workflows that were not triggered
   by their documented conditions.
+- Treat automated code reviews as part of the PR merge gate. When Sourcery
+  and CodeRabbit are configured and expected for a PR, wait for both reviews
+  to complete before merging, even if all CI checks are green.
+- Review automated findings critically. Address valid, actionable issues,
+  but do not blindly implement suggestions or treat every comment as a
+  blocker. Explain why relevant findings are not acted upon.
+- After pushing new commits, ensure expected automated reviews have completed
+  against the updated PR head. Reviews of an earlier commit are insufficient.
+- Before merging, verify the latest head SHA, CI results, completed expected
+  automated reviews, and outstanding review threads. Do not merge while an
+  expected review is pending.
+- If an expected review is missing, skipped, or cannot complete, establish
+  why. Do not silently waive the review gate; obtain explicit user approval
+  before proceeding without it.
 
 ### Implementation and review
 
@@ -178,6 +192,26 @@ user's request or these working agreements.
 - Prioritize by concrete impact, likelihood, and exposure. Distinguish
   exploitable security issues and data-loss risks from availability,
   consistency, convenience, and theoretical edge cases.
+- Treat maintainability and proportionality as design requirements, not
+  secondary considerations. The complexity of a solution must be justified
+  by the problem's impact, likelihood, and risk.
+- Start with the simplest viable solution. Before introducing helper modules,
+  abstractions, wrappers, additional dependencies, or custom test
+  infrastructure, establish why a simpler approach is insufficient.
+- Assess total maintenance cost, not just implementation effort or diff
+  size. Consider new concepts, execution paths, interfaces, dependencies,
+  assumptions, and failure modes.
+- Tests should verify externally observable behavior and meaningful
+  regressions. Avoid elaborate scaffolding that duplicates production logic
+  or makes a small change harder to understand than the behavior being tested.
+- Every additional abstraction or mechanism must provide a concrete benefit
+  that justifies its ongoing maintenance cost. Remove temporary scaffolding
+  and unnecessary complexity before considering a PR complete.
+- Prefer code that a future maintainer can understand without reconstructing
+  a chain of helpers, indirection, or implicit assumptions.
+- Before finalizing a non-trivial change, explicitly reconsider whether the
+  implementation can be simplified without sacrificing correctness,
+  security, reliability, or meaningful test coverage.
 - For every non-trivial mitigation, state the problem it prevents, the
   expected benefit, its operational and maintenance cost, and any new
   failure modes it introduces. Prefer the smallest solution that addresses
