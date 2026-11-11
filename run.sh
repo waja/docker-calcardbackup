@@ -13,8 +13,8 @@ EOF
 fi
 BACKUP_CMD="/opt/calcardbackup/calcardbackup ${NC_DIR:=/nextcloud/} --output ${BACKUP_DIR:=/backup/} ${CALCARD_OPTS:=-i}"
 BACKUP_LOG="${BACKUP_LOG:-/backup.log}"
-touch ${BACKUP_LOG}
-tail -F ${BACKUP_LOG} &
+touch "${BACKUP_LOG}"
+tail -F "${BACKUP_LOG}" &
 
 if [ -n "${INIT_BACKUP}" ]; then
 	echo "=> Create a backup on the startup"
@@ -30,7 +30,7 @@ if [ -n "${INIT_BACKUP}" ]; then
 			sleep 1
 		done
 	fi
-	${BACKUP_CMD} >>${BACKUP_LOG} 2>&1
+	${BACKUP_CMD} >>"${BACKUP_LOG}" 2>&1
 fi
 
 CRONTAB_FILE="${CRONTAB_FILE:-/crontab.conf}"
