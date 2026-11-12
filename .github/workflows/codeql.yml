@@ -13,21 +13,54 @@ on:
     - cron: "23 10 * * 1"
   workflow_dispatch:
 
+# Keep the workflow-wide token read-only. Only trusted branch/scheduled
+# analyses receive permission to publish Code Scanning results.
 permissions:
   actions: read
   contents: read
   pull-requests: read
-  security-events: write
 
 concurrency:
   group: codeql-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  analyze:
-    name: Analyze GitHub Actions
+  analyze-pr:
+    name: Analyze GitHub Actions (PR, no upload)
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: actions
+          build-mode: none
+          queries: security-extended
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:actions"
+          upload: never
+
+  analyze:
+    name: Analyze and publish GitHub Actions
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+      security-events: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
