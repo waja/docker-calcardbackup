@@ -48,8 +48,11 @@ user's request or these working agreements.
   this low-touch path for routine dependency updates: do not add a second
   bot-review gate unless a concrete risk justifies its maintenance cost.
   Keep the allowlist narrow and do not bypass checks actually required by
-  repository policy. Verify GitHub branch protection/rulesets before claiming
-  that CI or security checks are enforced as required checks.
+  repository policy. Do not add a separate review or major-version restriction
+  for scanner actions solely because of the update type: incompatible updates
+  are expected to fail the required CI checks; updates that pass those checks
+  remain eligible for automerge. Verify GitHub branch protection/rulesets
+  before claiming that CI or security checks are enforced as required checks.
 - Review automated findings critically. Fix valid, actionable issues, but
   do not follow suggestions blindly or treat every comment as a blocker.
 - After the final push, make sure CI and applicable reviews apply to the
@@ -154,8 +157,11 @@ user's request or these working agreements.
   or broaden automerge rules without an explicit, documented decision.
 - Automerge is a policy decision. Keep Dockerfile patch and digest updates
   within the configured policy. For GitHub Actions, only explicitly
-  allowlisted packages and approved update types should be eligible; verify
-  the actual Renovate rules before describing that policy as enforced.
+  allowlisted packages should be eligible. Major updates of allowlisted
+  scanner actions remain eligible when the required CI checks pass; rely on
+  those checks to reject incompatible updates rather than adding a separate
+  review gate or update-type restriction. Verify the actual Renovate rules
+  before describing that policy as enforced.
 - Preserve image provenance labels and build metadata unless a deliberate
   change requires otherwise.
 - Treat publishing as a privileged operation. Inspect the actual event
