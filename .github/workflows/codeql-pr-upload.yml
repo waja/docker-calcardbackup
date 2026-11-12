@@ -12,17 +12,16 @@ permissions:
   contents: read
   pull-requests: read
 
-concurrency:
-  group: codeql-pr-upload-${{ github.event.workflow_run.pull_requests[0].number || github.run_id }}
-  cancel-in-progress: true
-
 jobs:
   analyze-and-upload:
     name: Publish trusted PR analysis
     if: >-
       github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.path == '.github/workflows/codeql.yml'
+      (
+        github.event.workflow_run.path == '.github/workflows/codeql.yml' ||
+        startsWith(github.event.workflow_run.path, '.github/workflows/codeql.yml@')
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -31,95 +30,89 @@ jobs:
       pull-requests: read
       security-events: write
     steps:
-      - name: Verify current pull request revision
+      - name: Verify current pull request revisions
         id: pr
         uses: actions/github-script@v8
         with:
           script: |
             const run = context.payload.workflow_run;
-            const associated = run.pull_requests?.[0];
-            let pr;
+            const headRepo = run.head_repository;
 
-            if (associated) {
-              ({ data: pr } = await github.rest.pulls.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: associated.number,
+            if (!headRepo?.id || !headRepo.owner?.login || !run.head_branch) {
+              core.notice("The source run has no complete head repository or branch; skipping CodeQL publication.");
+              core.setOutput("prs", "[]");
+              return;
+            }
+
+            let candidates;
+            const associated = run.pull_requests ?? [];
+
+            if (associated.length > 0) {
+              candidates = await Promise.all(associated.map(async ({ number }) => {
+                const { data } = await github.rest.pulls.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: number,
+                });
+                return data;
               }));
             } else {
               // GitHub may omit workflow_run.pull_requests for fork PRs.
-              // Resolve by source repository, branch, and exact scanned SHA.
-              const headRepo = run.head_repository;
-              if (!headRepo || !run.head_branch) {
-                core.notice("The source run has no head repository or branch; skipping CodeQL publication.");
-                core.setOutput("scan", "false");
-                return;
-              }
-
-              const { data: candidates } = await github.rest.pulls.list({
+              // Paginate so the fallback does not silently stop at 100 PRs.
+              candidates = await github.paginate(github.rest.pulls.list, {
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 state: "open",
                 head: `${headRepo.owner.login}:${run.head_branch}`,
                 per_page: 100,
               });
-              const matches = candidates.filter(candidate =>
-                candidate.head.sha === run.head_sha &&
-                candidate.head.repo?.id === headRepo.id &&
-                ["development", "master"].includes(candidate.base.ref)
-              );
-
-              if (matches.length !== 1) {
-                core.notice(`Expected one open PR for scanned head ${run.head_sha}, found ${matches.length}; skipping publication.`);
-                core.setOutput("scan", "false");
-                return;
-              }
-              pr = matches[0];
             }
 
-            const valid =
-              pr.state === "open" &&
-              ["development", "master"].includes(pr.base.ref) &&
-              pr.head.sha === run.head_sha &&
-              pr.head.repo?.id === run.head_repository?.id;
+            const eligible = candidates
+              .filter(pr =>
+                pr.state === "open" &&
+                ["development", "master"].includes(pr.base.ref) &&
+                pr.head.sha === run.head_sha &&
+                pr.head.repo?.id &&
+                pr.head.repo.id === headRepo.id
+              )
+              .map(pr => ({
+                number: pr.number,
+                sha: pr.head.sha,
+                repository: pr.head.repo.full_name,
+              }));
 
-            if (!valid) {
-              core.notice("Pull request is closed, targets an unsupported branch, or no longer matches the scanned repository and commit; skipping stale results.");
-              core.setOutput("scan", "false");
-              return;
+            if (eligible.length === 0) {
+              core.notice(`No eligible open PR matches scanned commit ${run.head_sha}; skipping publication.`);
             }
 
-            core.setOutput("scan", "true");
-            core.setOutput("number", String(pr.number));
-            core.setOutput("repository", pr.head.repo.full_name);
-            core.setOutput("sha", pr.head.sha);
+            core.setOutput("prs", JSON.stringify(eligible));
+            core.setOutput("sha", run.head_sha);
+            core.setOutput("head-repo-id", String(headRepo.id));
 
       # Load the composite action from the trusted target repository revision,
       # never from the pull request checkout.
       - name: Checkout trusted workflow helpers
-        if: steps.pr.outputs.scan == 'true'
+        if: steps.pr.outputs.prs != '[]'
         uses: actions/checkout@v7
         with:
           ref: ${{ github.event.repository.default_branch }}
           path: trusted
           persist-credentials: false
 
-      # This workflow runs from the default branch. The PR checkout is input
-      # data for CodeQL only; never execute code from this directory.
-      - name: Checkout pull request
-        if: steps.pr.outputs.scan == 'true'
+      # PR checkout is input data for CodeQL only; no PR code is executed.
+      - name: Checkout pull request source
+        if: steps.pr.outputs.prs != '[]'
         uses: actions/checkout@v7
         with:
-          repository: ${{ steps.pr.outputs.repository }}
+          repository: ${{ fromJSON(steps.pr.outputs.prs)[0].repository }}
           ref: ${{ steps.pr.outputs.sha }}
           path: src
           persist-credentials: false
-          # Safe only because this checkout is static-analysis input; no PR
-          # scripts, actions, builds, or configuration are executed.
           allow-unsafe-pr-checkout: true
 
       - name: Analyze with CodeQL
-        if: steps.pr.outputs.scan == 'true'
+        if: steps.pr.outputs.prs != '[]'
         id: codeql_init
         uses: ./trusted/.github/actions/codeql-analysis
         with:
@@ -127,15 +120,17 @@ jobs:
           output: ${{ runner.temp }}/codeql-results
           upload: never
 
-      # The SARIF was generated by this trusted workflow run, not by the PR
-      # workflow. The CodeQL CLI supports explicit refs for fork PRs.
+      # Re-fetch each PR immediately before upload. This avoids publishing
+      # results for a head that advanced after the initial verification.
       - name: Upload pull request results
-        if: steps.pr.outputs.scan == 'true'
+        if: steps.pr.outputs.prs != '[]'
         env:
           CODEQL: ${{ steps.codeql_init.outputs.codeql-path }}
-          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          PRS_JSON: ${{ steps.pr.outputs.prs }}
           PR_HEAD_SHA: ${{ steps.pr.outputs.sha }}
+          PR_HEAD_REPO_ID: ${{ steps.pr.outputs.head-repo-id }}
           GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           mapfile -t sarif_files < <(find "${{ runner.temp }}/codeql-results" -maxdepth 1 -type f -name '*.sarif' -print)
@@ -143,9 +138,27 @@ jobs:
             echo "Expected exactly one CodeQL SARIF file, found ${#sarif_files[@]}." >&2
             exit 1
           fi
-          "$CODEQL" github upload-results \
-            --repository="$GITHUB_REPOSITORY" \
-            --ref="refs/pull/$PR_NUMBER/head" \
-            --commit="$PR_HEAD_SHA" \
-            --sarif="${sarif_files[0]}" \
-            --checkout-path="$GITHUB_WORKSPACE/src"
+
+          while IFS= read -r pr_number; do
+            current_pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}")"
+            current_state="$(jq -r '.state' <<< "$current_pr")"
+            current_base="$(jq -r '.base.ref' <<< "$current_pr")"
+            current_sha="$(jq -r '.head.sha' <<< "$current_pr")"
+            current_repo_id="$(jq -r '.head.repo.id // empty' <<< "$current_pr")"
+
+            if [[ "$current_state" != "open" ||
+                  ! "$current_base" =~ ^(development|master)$ ||
+                  "$current_sha" != "$PR_HEAD_SHA" ||
+                  "$current_repo_id" != "$PR_HEAD_REPO_ID" ]]; then
+              echo "Skipping PR #${pr_number}: its current head no longer matches the analyzed revision."
+              continue
+            fi
+
+            printf '%s' "$GITHUB_TOKEN" | "$CODEQL" github upload-results \
+              --github-auth-stdin \
+              --repository="$GITHUB_REPOSITORY" \
+              --ref="refs/pull/${pr_number}/head" \
+              --commit="$PR_HEAD_SHA" \
+              --sarif="${sarif_files[0]}" \
+              --checkout-path="$GITHUB_WORKSPACE/src"
+          done < <(jq -r '.[].number' <<< "$PRS_JSON")
