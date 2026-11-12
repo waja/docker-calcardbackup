@@ -175,7 +175,7 @@ user's request or these working agreements.
 - `.github/actions/codeql-analysis/action.yml` contains the shared CodeQL
   initialization and analysis steps for GitHub Actions workflow files.
   `.github/workflows/codeql.yml` invokes it for trusted branch scans and
-  read-only PR scans. The PR job loads the helper from the trusted base commit
+  read-only `pull_request_target` scans. The PR job runs from the trusted base workflow and loads the helper from the trusted base commit
   and checks out PR source separately as static-analysis input only. Manual
   dispatch is privileged only on `development` and `master`.
   `.github/workflows/codeql-pr-upload.yml` runs from the trusted default
