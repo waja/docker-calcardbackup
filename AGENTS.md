@@ -87,6 +87,10 @@ user's request or these working agreements.
 - Do not pass `GITHUB_TOKEN` to third-party actions unless their documented
   functionality requires it. When required, expose it only to the relevant
   step/job and keep its permissions to the minimum necessary.
+- Remember that actions can access `github.token` even when the token is
+  not explicitly passed as an input or environment variable. Explicit token
+  permissions are therefore the primary security boundary; avoiding
+  unnecessary token exposure is an additional safeguard.
 - Treat pull-request workflows as untrusted, especially for same-repository
   contributions. Keep publishing credentials and write-capable tokens out
   of PR validation; use event conditions as an additional safeguard, not
