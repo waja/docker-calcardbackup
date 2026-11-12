@@ -172,6 +172,10 @@ user's request or these working agreements.
   `docker-compose-complex-example.yml` are deployment examples.
 - `.github/workflows/docker.image.yml` contains lint/security checks,
   image build and test jobs, artifact handling, and image publishing.
+- `.github/workflows/codeql.yml` runs CodeQL analysis for GitHub Actions
+  workflow files. Pull-request runs are read-only and perform analysis without
+  uploading SARIF; trusted push, scheduled, and manual runs publish results
+  to Code Scanning.
 - `.github/renovate.json` configures Renovate for Docker and GitHub Actions.
   `.github/dependabot.yml` also configures Dependabot for those ecosystems.
   Their current scopes overlap. Avoid duplicate update PRs by assigning each
@@ -219,9 +223,15 @@ user's request or these working agreements.
 
 ### Tests and CI
 
-- Treat `.github/workflows/docker.image.yml` as the authoritative CI
-  pipeline. Inspect current job dependencies and event conditions before
-  changing it; do not assume every job runs for every event.
+- Treat `.github/workflows/docker.image.yml` as the authoritative container
+  build/test/publishing pipeline. `.github/workflows/codeql.yml` is the
+  dedicated GitHub Actions CodeQL scanner. Inspect both workflows' job
+  dependencies and event conditions before changing them; do not assume every
+  job runs for every event.
+- Keep CodeQL pull-request analysis read-only and non-publishing. Only trusted
+  push, scheduled, or manually dispatched runs may receive
+  `security-events: write` and upload SARIF. Do not move that permission into
+  a pull-request workflow or execute pull-request-controlled steps with it.
 - Preserve the separation between lint/security checks, image build,
   container tests, and publishing.
 - For Dockerfile or runtime changes, run the image build and relevant
