@@ -172,12 +172,13 @@ user's request or these working agreements.
   `docker-compose-complex-example.yml` are deployment examples.
 - `.github/workflows/docker.image.yml` contains lint/security checks,
   image build and test jobs, artifact handling, and image publishing.
-- `.github/workflows/codeql.yml` runs CodeQL analysis for GitHub Actions
-  workflow files. Pull-request runs use read-only permissions and do not
-  publish SARIF. `.github/workflows/codeql-pr-upload.yml` listens for those
-  runs and repeats the scan from its trusted default-branch definition before
-  publishing results for the verified PR head. Push, scheduled, and manual
-  runs publish branch results directly.
+- `.github/actions/codeql-analysis/action.yml` contains the shared CodeQL
+  initialization and analysis steps for GitHub Actions workflow files.
+  `.github/workflows/codeql.yml` invokes it for branch and read-only PR scans;
+  `.github/workflows/codeql-pr-upload.yml` invokes the same action from its
+  trusted default-branch definition to rescan and publish results for the
+  verified PR head. Push, scheduled, and manual runs publish branch results
+  directly.
 - `.github/renovate.json` configures Renovate for Docker and GitHub Actions.
   `.github/dependabot.yml` also configures Dependabot for those ecosystems.
   Their current scopes overlap. Avoid duplicate update PRs by assigning each
