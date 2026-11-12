@@ -1,0 +1,39 @@
+name: CodeQL analysis
+description: Initialize and run the repository's GitHub Actions CodeQL analysis.
+
+inputs:
+  source-root:
+    description: Root directory containing the source to analyze.
+    required: false
+    default: "."
+  upload:
+    description: Whether CodeQL should upload results automatically (always or never).
+    required: false
+    default: always
+  output:
+    description: Directory where the SARIF result is written.
+    required: true
+
+outputs:
+  codeql-path:
+    description: Path to the CodeQL CLI installed by the init action.
+    value: ${{ steps.init.outputs.codeql-path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Initialize CodeQL
+      id: init
+      uses: github/codeql-action/init@v4
+      with:
+        languages: actions
+        build-mode: none
+        queries: security-extended
+        source-root: ${{ inputs.source-root }}
+
+    - name: Perform CodeQL analysis
+      uses: github/codeql-action/analyze@v4
+      with:
+        category: "/language:actions"
+        output: ${{ inputs.output }}
+        upload: ${{ inputs.upload }}
