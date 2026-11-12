@@ -101,10 +101,13 @@ user's request or these working agreements.
   isolate such permissions in a dedicated reporting job that does not execute
   PR-controlled code. Do not grant them to scanner, build, or test jobs merely
   because those jobs produce the report. If safe isolation is not practical,
-  retain the report as an artifact for inspection. A trusted workflow must not
-  blindly upload a PR-generated SARIF artifact: it must independently generate
-  the report from a verified checkout, or validate the artifact's provenance,
-  integrity, and target before uploading it.
+  retain the report as an artifact for inspection. A trusted workflow must
+  not blindly upload a PR-generated SARIF artifact. Prefer rerunning the
+  scanner from the trusted workflow definition against the verified PR commit,
+  without executing PR-controlled scripts or actions. If an artifact must be
+  consumed, verify that an approved scanner and configuration produced it for
+  the exact repository, ref, and commit; validate its integrity, SARIF content,
+  and target before upload. Do not treat PR-controlled metadata as proof.
 - Verify the permissions needed by SARIF uploads, scanner integrations,
   and registry publishing before changing scopes. Do not guess permissions
   or broaden them merely to make a workflow pass.
