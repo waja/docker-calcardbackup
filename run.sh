@@ -43,6 +43,5 @@ fi
 
 CRONTAB_FILE="${CRONTAB_FILE:-/crontab.conf}"
 echo "${CRON_TIME:=5 4 * * *} ${BACKUP_CMD} >> ${BACKUP_LOG} 2>&1" >"$CRONTAB_FILE"
-crontab "$CRONTAB_FILE"
 echo "=> Running cron task manager"
-exec crond -f
+exec supercronic "$CRONTAB_FILE"
