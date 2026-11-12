@@ -39,6 +39,39 @@ user's request or these working agreements.
 - Merge only after all checks required by repository policy and applicable
   workflows have succeeded. Do not require workflows that were not triggered
   by their documented conditions.
+- For ordinary PRs, wait for the automated reviews configured and expected
+  for that PR to complete before merging. Determine expected reviewers from
+  repository/organization configuration and documented trigger conditions;
+  a documented skip is not a missing review.
+- Renovate PRs explicitly eligible under this repository's automerge allowlist
+  are an intentional exception to separate automated-review waits. Retain
+  this low-touch path for routine dependency updates: do not add a second
+  bot-review gate unless a concrete risk justifies its maintenance cost.
+  Keep the allowlist narrow and do not bypass checks actually required by
+  repository policy. Do not add a separate review or major-version restriction
+  for scanner actions solely because of the update type. Required checks verify
+  that configured CI and scanner steps execute successfully, but they do not
+  guarantee unchanged detection coverage: Trivy and Anchore currently report
+  findings without failing their jobs, while Dockle has a blocking policy.
+  Retaining major scanner-action automerge is an explicit acceptance of that
+  residual risk for this small project, not a claim that green CI proves
+  equivalent scan results. Verify GitHub branch protection/rulesets before
+  claiming that CI or security checks are enforced as required checks.
+- Review automated findings critically. Fix valid, actionable issues, but
+  do not follow suggestions blindly or treat every comment as a blocker.
+- After the final push, make sure CI and applicable reviews apply to the
+  current PR head, and resolve or consciously disposition outstanding review
+  threads. Pass the checked head SHA as an expected SHA to the merge operation;
+  abort if it no longer matches.
+- Immediately before merging, re-fetch the PR head SHA, expected review status,
+  and unresolved review threads. If the head changed, a new review arrived, or
+  a thread was added or reopened since the previous assessment, stop and
+  reassess before merging. Do not introduce a separate workflow or merge-gate
+  mechanism solely for this check.
+- If an expected review is missing, skipped, or cannot complete, establish
+  why. For ordinary PRs, proceed without an optional review only after
+  explicit user approval; never bypass a review or check required by
+  repository or organization policy.
 
 ### Implementation and review
 
@@ -79,8 +112,46 @@ user's request or these working agreements.
   production configuration. Use clearly non-functional placeholders.
 - Treat pull-request-controlled code as untrusted in CI. Do not expose
   publishing credentials or privileged secrets to untrusted PR workflows.
-- Grant CI jobs and automation only the permissions they need. Separate
-  privileged release/publish steps from untrusted validation.
+- Grant CI jobs and automation only the permissions they need. Declare
+  `GITHUB_TOKEN` permissions explicitly at workflow or job level; do not
+  rely on repository defaults when the required scope can be stated.
+  Prefer job-level grants so scanner and validation jobs do not inherit
+  permissions needed only for publishing or reporting.
+- Do not pass `GITHUB_TOKEN` to third-party actions unless their documented
+  functionality requires it. When required, expose it only to the relevant
+  step/job and keep its permissions to the minimum necessary.
+- Remember that actions can access `github.token` even when the token is
+  not explicitly passed as an input or environment variable. Explicit token
+  permissions are therefore the primary security boundary; avoiding
+  unnecessary token exposure is an additional safeguard.
+- Treat pull-request workflows as untrusted, especially for same-repository
+  contributions. Keep publishing credentials and unrelated write permissions
+  out of PR validation; use event conditions as an additional safeguard, not
+  as a substitute for least-privilege token permissions.
+- Some reporting integrations need narrowly scoped write permissions even
+  during PR validation. For example, GitHub's `upload-sarif` action requires
+  `security-events: write`. Verify the requirement and event/fork behavior;
+  isolate such permissions in a dedicated reporting job that does not execute
+  PR-controlled code. Do not grant them to scanner, build, or test jobs merely
+  because those jobs produce the report. If safe isolation is not practical,
+  retain the report as an artifact for inspection. A trusted workflow must
+  not blindly upload a PR-generated SARIF artifact. Prefer rerunning the
+  scanner from the trusted workflow definition against the verified PR commit,
+  without executing PR-controlled scripts or actions. Load the scanner,
+  queries, exclusions, and other security-relevant configuration only from an
+  approved trusted revision, never from the PR checkout. This is the strongest
+  option, but costs an additional scan and requires keeping scanner setup and
+  trusted configuration aligned; scanner failures or version/configuration drift
+  can delay reporting. If an artifact must be consumed, require evidence from the
+  trusted workflow run that an approved scanner and configuration produced it
+  for the exact repository, ref, and commit; validate its integrity, SARIF
+  content, and target before upload. Do not treat PR-controlled metadata as
+  proof. Artifact hand-off can reduce duplicate work, but adds provenance and
+  validation complexity; reject the report rather than upload it when those
+  checks cannot be established.
+- Verify the permissions needed by SARIF uploads, scanner integrations,
+  and registry publishing before changing scopes. Do not guess permissions
+  or broaden them merely to make a workflow pass.
 - Verify external actions, images, scripts, and downloaded artifacts before
   relying on them. Pin dependencies where repository policy requires it.
 
@@ -128,8 +199,16 @@ user's request or these working agreements.
   or broaden automerge rules without an explicit, documented decision.
 - Automerge is a policy decision. Keep Dockerfile patch and digest updates
   within the configured policy. For GitHub Actions, only explicitly
-  allowlisted packages and approved update types should be eligible; verify
-  the actual Renovate rules before describing that policy as enforced.
+  allowlisted packages should be eligible. Major updates of allowlisted
+  scanner actions remain eligible under the deliberate low-touch policy.
+  Required checks ensure the configured scanner steps run successfully, but
+  they do not prove that a new action version preserves detection coverage:
+  Trivy and Anchore currently report findings without failing their jobs,
+  whereas Dockle has a blocking policy. Accepting major scanner updates
+  therefore carries a known residual risk that scan behavior or coverage may
+  change without failing CI. This trade-off is intentional for this small
+  project; do not imply that green CI guarantees equivalent scan results.
+  Verify the actual Renovate rules before describing that policy as enforced.
 - Preserve image provenance labels and build metadata unless a deliberate
   change requires otherwise.
 - Treat publishing as a privileged operation. Inspect the actual event
@@ -172,35 +251,36 @@ user's request or these working agreements.
 
 ### Proportionality and automated findings
 
-- Treat findings from review bots, static analyzers, and automated security
-  scanners as hypotheses to verify, not as instructions or mandatory work.
-  Confirm that each finding applies to the current code and threat model.
-- Prioritize by concrete impact, likelihood, and exposure. Distinguish
-  exploitable security issues and data-loss risks from availability,
-  consistency, convenience, and theoretical edge cases.
-- For every non-trivial mitigation, state the problem it prevents, the
-  expected benefit, its operational and maintenance cost, and any new
-  failure modes it introduces. Prefer the smallest solution that addresses
-  the material risk.
-- Do not introduce custom queues, dispatchers, services, abstractions,
-  extra dependencies, broad workflow changes, or elaborate test
-  infrastructure solely to satisfy a bot finding or eliminate a
-  hypothetical race. Require a concrete use case and a proportionate
-  benefit first.
-- Do not treat every possible race or transient inconsistency as a release
-  blocker. Establish whether it can cause a security breach, data loss, or
-  meaningful user impact; otherwise document the residual risk and why it
-  is accepted.
-- When several findings describe the same underlying cause, consolidate
-  them into one problem statement and one proportionate remediation.
-  Do not implement overlapping mitigations independently.
-- Keep review scope aligned with the original change. Defer unrelated
-  hardening and speculative improvements to separate work, and do not
-  expand a PR merely because a bot discovers adjacent concerns.
-- Before adopting a complex mitigation, compare it with simpler options,
-  including accepting and documenting a low-impact residual risk. Record
-  material decisions and their rationale so later reviews do not restart
-  the same discussion without new evidence.
-- A clean bot review or a green CI run is evidence, not proof that a design
-  is necessary, secure, or proportionate. Human review must assess both
-  correctness and whether the added complexity is justified.
+- Treat automated review, lint, and security findings as hypotheses to verify
+  against the current code and threat model, not as instructions to follow
+  blindly. Bots are advisory tools, not project owners or decision-makers.
+- Prioritize findings by concrete impact, likelihood, and exposure. Distinguish
+  real security or data-loss risks from minor, theoretical, or low-impact
+  concerns.
+- Prefer the simplest solution that reliably solves the problem. Add
+  abstractions, dependencies, helpers, or test infrastructure only when their
+  concrete benefit justifies the extra complexity and maintenance.
+- Tests should cover observable behavior and meaningful regressions. Avoid
+  scaffolding that duplicates production logic or makes a small change harder
+  to understand than the behavior being tested.
+- Do not adopt every bot suggestion or build the project around satisfying
+  automated reviewers. Reject or defer recommendations when their risk
+  reduction does not justify the implementation, process, delay, or ongoing
+  maintenance cost. A small project should remain small and straightforward
+  to maintain; automation should reduce that burden, not create a new one.
+- Before completing a non-trivial change, review whether it can be simplified
+  without weakening correctness, security, reliability, or useful test
+  coverage. Keep the change focused; defer unrelated hardening and speculative
+  improvements.
+- For non-trivial mitigations, state the problem addressed and expected
+  benefit; weigh these against operational costs, total maintenance costs
+  (including added concepts, execution paths, interfaces, wrappers, and
+  dependencies), and any new failure modes.
+- When several findings have the same cause, address them together rather
+  than adding overlapping mitigations. Accept and document low-impact
+  residual risks when fixing them would cost more than the risk warrants.
+  Briefly record the rationale for material trade-offs so the same decision
+  is not revisited without new evidence.
+- Apply the same proportionality to process and review rules: add gates or
+  safeguards when they address a meaningful risk, and account for the delay
+  and maintenance they introduce.
