@@ -76,6 +76,7 @@ jobs:
       - name: Checkout pull request
         uses: actions/checkout@v7
         with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
           ref: ${{ github.event.pull_request.head.sha }}
           path: src
           persist-credentials: false
