@@ -55,7 +55,7 @@ jobs:
               pr.state === "open" &&
               ["development", "master"].includes(pr.base.ref) &&
               pr.head.sha === associated.head.sha &&
-              pr.head.repo?.id === associated.head.repo?.id;
+              Boolean(pr.head.repo && associated.head.repo && pr.head.repo.id === associated.head.repo.id);
 
             if (!valid) {
               core.notice("Pull request is closed, targets an unsupported branch, or has moved since the source scan; skipping stale results.");
