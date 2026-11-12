@@ -94,6 +94,16 @@ jobs:
             core.setOutput("repository", pr.head.repo.full_name);
             core.setOutput("sha", pr.head.sha);
 
+      # Load the composite action from the trusted target repository revision,
+      # never from the pull request checkout.
+      - name: Checkout trusted workflow helpers
+        if: steps.pr.outputs.scan == 'true'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted
+          persist-credentials: false
+
       # This workflow runs from the default branch. The PR checkout is input
       # data for CodeQL only; never execute code from this directory.
       - name: Checkout pull request
@@ -111,7 +121,7 @@ jobs:
       - name: Analyze with CodeQL
         if: steps.pr.outputs.scan == 'true'
         id: codeql_init
-        uses: ./.github/actions/codeql-analysis
+        uses: ./trusted/.github/actions/codeql-analysis
         with:
           source-root: src
           output: ${{ runner.temp }}/codeql-results
