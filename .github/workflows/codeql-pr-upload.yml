@@ -22,8 +22,7 @@ jobs:
     if: >-
       github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.path == '.github/workflows/codeql.yml' &&
-      github.event.workflow_run.pull_requests[0]
+      github.event.workflow_run.path == '.github/workflows/codeql.yml'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -39,26 +38,53 @@ jobs:
           script: |
             const run = context.payload.workflow_run;
             const associated = run.pull_requests?.[0];
-            if (!associated) {
-              core.notice("No associated pull request; skipping CodeQL publication.");
-              core.setOutput("scan", "false");
-              return;
-            }
+            let pr;
 
-            const { data: pr } = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: associated.number,
-            });
+            if (associated) {
+              ({ data: pr } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: associated.number,
+              }));
+            } else {
+              // GitHub may omit workflow_run.pull_requests for fork PRs.
+              // Resolve by source repository, branch, and exact scanned SHA.
+              const headRepo = run.head_repository;
+              if (!headRepo || !run.head_branch) {
+                core.notice("The source run has no head repository or branch; skipping CodeQL publication.");
+                core.setOutput("scan", "false");
+                return;
+              }
+
+              const { data: candidates } = await github.rest.pulls.list({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: "open",
+                head: `${headRepo.owner.login}:${run.head_branch}`,
+                per_page: 100,
+              });
+              const matches = candidates.filter(candidate =>
+                candidate.head.sha === run.head_sha &&
+                candidate.head.repo?.id === headRepo.id &&
+                ["development", "master"].includes(candidate.base.ref)
+              );
+
+              if (matches.length !== 1) {
+                core.notice(`Expected one open PR for scanned head ${run.head_sha}, found ${matches.length}; skipping publication.`);
+                core.setOutput("scan", "false");
+                return;
+              }
+              pr = matches[0];
+            }
 
             const valid =
               pr.state === "open" &&
               ["development", "master"].includes(pr.base.ref) &&
-              pr.head.sha === associated.head.sha &&
-              Boolean(pr.head.repo && associated.head.repo && pr.head.repo.id === associated.head.repo.id);
+              pr.head.sha === run.head_sha &&
+              pr.head.repo?.id === run.head_repository?.id;
 
             if (!valid) {
-              core.notice("Pull request is closed, targets an unsupported branch, or has moved since the source scan; skipping stale results.");
+              core.notice("Pull request is closed, targets an unsupported branch, or no longer matches the scanned repository and commit; skipping stale results.");
               core.setOutput("scan", "false");
               return;
             }
