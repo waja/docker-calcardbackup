@@ -104,10 +104,12 @@ user's request or these working agreements.
   retain the report as an artifact for inspection. A trusted workflow must
   not blindly upload a PR-generated SARIF artifact. Prefer rerunning the
   scanner from the trusted workflow definition against the verified PR commit,
-  without executing PR-controlled scripts or actions. This is the strongest
-  option, but costs an additional scan and requires keeping scanner setup in the
-  trusted workflow aligned; scanner failures or version/configuration drift can
-  delay reporting. If an artifact must be consumed, require evidence from the
+  without executing PR-controlled scripts or actions. Load the scanner,
+  queries, exclusions, and other security-relevant configuration only from an
+  approved trusted revision, never from the PR checkout. This is the strongest
+  option, but costs an additional scan and requires keeping scanner setup and
+  trusted configuration aligned; scanner failures or version/configuration drift
+  can delay reporting. If an artifact must be consumed, require evidence from the
   trusted workflow run that an approved scanner and configuration produced it
   for the exact repository, ref, and commit; validate its integrity, SARIF
   content, and target before upload. Do not treat PR-controlled metadata as
