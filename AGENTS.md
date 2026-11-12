@@ -179,11 +179,13 @@ user's request or these working agreements.
   and checks out PR source separately as static-analysis input only. Manual
   dispatch is privileged only on `development` and `master`.
   `.github/workflows/codeql-pr-upload.yml` runs from the trusted default
-  branch, validates every associated PR against the source run's repository
-  and exact commit, reruns CodeQL using trusted configuration, rechecks each
-  PR immediately before upload, and publishes results for each still-current
-  PR head. It does not cancel concurrent publisher runs. Push, scheduled, and
-  trusted manual runs publish branch results directly.
+  branch. The trusted PR scan passes only its PR number, source repository,
+  and exact head SHA through a small metadata artifact (never SARIF). The
+  publisher validates that metadata against the live PR, reruns CodeQL using
+  trusted configuration, rechecks the PR immediately before upload, and
+  publishes only if the head still matches. It does not cancel concurrent
+  publisher runs. Push, scheduled, and trusted manual runs publish branch
+  results directly.
 - `.github/renovate.json` configures Renovate for Docker and GitHub Actions.
   `.github/dependabot.yml` also configures Dependabot for those ecosystems.
   Their current scopes overlap. Avoid duplicate update PRs by assigning each
