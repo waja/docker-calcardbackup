@@ -5,7 +5,7 @@ on:
     branches:
       - development
       - master
-  pull_request:
+  pull_request_target:
     branches:
       - development
       - master
@@ -28,7 +28,7 @@ jobs:
     # A manual dispatch may select an arbitrary branch. Only trusted branches
     # may run the scanner with permission to publish CodeQL results.
     if: >-
-      github.event_name != 'pull_request' &&
+      github.event_name != 'pull_request_target' &&
       (
         github.event_name != 'workflow_dispatch' ||
         github.ref == 'refs/heads/development' ||
@@ -55,7 +55,7 @@ jobs:
 
   analyze-pr:
     name: Analyze GitHub Actions (read-only)
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request_target'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
