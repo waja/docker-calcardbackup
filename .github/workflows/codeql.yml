@@ -39,17 +39,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+      - name: Analyze with CodeQL
+        uses: ./.github/actions/codeql-analysis
         with:
-          languages: actions
-          build-mode: none
-          queries: security-extended
-
-      - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@v4
-        with:
-          category: "/language:actions"
+          output: ${{ runner.temp }}/codeql-results
+          upload: always
 
   analyze-pr:
     name: Analyze GitHub Actions (read-only)
@@ -66,15 +60,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+      - name: Analyze with CodeQL
+        uses: ./.github/actions/codeql-analysis
         with:
-          languages: actions
-          build-mode: none
-          queries: security-extended
-
-      - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@v4
-        with:
-          category: "/language:actions"
+          output: ${{ runner.temp }}/codeql-results
           upload: never
