@@ -173,9 +173,11 @@ user's request or these working agreements.
 - `.github/workflows/docker.image.yml` contains lint/security checks,
   image build and test jobs, artifact handling, and image publishing.
 - `.github/workflows/codeql.yml` runs CodeQL analysis for GitHub Actions
-  workflow files. Pull-request runs are read-only and perform analysis without
-  uploading SARIF; trusted push, scheduled, and manual runs publish results
-  to Code Scanning.
+  workflow files. Pull requests use `pull_request_target` so the trusted base
+  workflow performs the scan; PR files are checked out separately and treated
+  only as data, never executed. The workflow uploads SARIF for the exact PR
+  head through the CodeQL CLI. Push, scheduled, and manual runs publish branch
+  results.
 - `.github/renovate.json` configures Renovate for Docker and GitHub Actions.
   `.github/dependabot.yml` also configures Dependabot for those ecosystems.
   Their current scopes overlap. Avoid duplicate update PRs by assigning each
@@ -228,10 +230,14 @@ user's request or these working agreements.
   dedicated GitHub Actions CodeQL scanner. Inspect both workflows' job
   dependencies and event conditions before changing them; do not assume every
   job runs for every event.
-- Keep CodeQL pull-request analysis read-only and non-publishing. Only trusted
-  push, scheduled, or manually dispatched runs may receive
-  `security-events: write` and upload SARIF. Do not move that permission into
-  a pull-request workflow or execute pull-request-controlled steps with it.
+- Keep CodeQL pull-request analysis on `pull_request_target`, using the
+  trusted base-branch workflow definition. PR source may be checked out for
+  static analysis, but must remain data only: never execute PR-controlled
+  scripts, actions, build steps, or configuration. Keep checkout credentials
+  unpersisted. The trusted scanner uploads its own SARIF for the exact PR
+  head; do not consume SARIF or other artifacts produced by an untrusted PR
+  workflow. Keep `security-events: write` scoped to the CodeQL job and do not
+  grant it to ordinary PR validation workflows.
 - Preserve the separation between lint/security checks, image build,
   container tests, and publishing.
 - For Dockerfile or runtime changes, run the image build and relevant
