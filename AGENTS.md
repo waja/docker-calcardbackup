@@ -222,6 +222,17 @@ user's request or these working agreements.
 - Treat `.github/workflows/docker.image.yml` as the authoritative CI
   pipeline. Inspect current job dependencies and event conditions before
   changing it; do not assume every job runs for every event.
+- Scanner jobs execute on pull requests, but do not persist raw SARIF
+  reports as workflow artifacts for those runs. SARIF artifacts are uploaded
+  only for non-PR events and are short-lived; separate uploader jobs grant
+  `security-events: write` only on those trusted events. Never expose that
+  permission to a workflow definition or code controlled by a pull request.
+  Pull-request SARIF publication is intentionally deferred to issue #256,
+  which must provide a trusted handoff without public report artifacts.
+  Do not switch to `pull_request_target` or expose additional credentials to
+  PR-controlled code. The Docker publishing job runs only outside
+  `pull_request` events and requires the ShiftLeft scan, image tests, and all
+  blocking image scanners to succeed.
 - Preserve the separation between lint/security checks, image build,
   container tests, and publishing.
 - For Dockerfile or runtime changes, run the image build and relevant
