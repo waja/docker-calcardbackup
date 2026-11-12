@@ -92,9 +92,16 @@ user's request or these working agreements.
   permissions are therefore the primary security boundary; avoiding
   unnecessary token exposure is an additional safeguard.
 - Treat pull-request workflows as untrusted, especially for same-repository
-  contributions. Keep publishing credentials and write-capable tokens out
-  of PR validation; use event conditions as an additional safeguard, not
+  contributions. Keep publishing credentials and unrelated write permissions
+  out of PR validation; use event conditions as an additional safeguard, not
   as a substitute for least-privilege token permissions.
+- Some reporting integrations need narrowly scoped write permissions even
+  during PR validation. For example, GitHub's `upload-sarif` action requires
+  `security-events: write`. Verify the requirement and event/fork behavior;
+  isolate such permissions in a dedicated reporting job that does not execute
+  PR-controlled code. Do not grant them to scanner, build, or test jobs merely
+  because those jobs produce the report. If safe isolation is not practical,
+  retain the report as an artifact and upload it from a trusted workflow.
 - Verify the permissions needed by SARIF uploads, scanner integrations,
   and registry publishing before changing scopes. Do not guess permissions
   or broaden them merely to make a workflow pass.
