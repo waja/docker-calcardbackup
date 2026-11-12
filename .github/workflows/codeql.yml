@@ -5,7 +5,7 @@ on:
     branches:
       - development
       - master
-  pull_request:
+  pull_request_target:
     branches:
       - development
       - master
@@ -13,47 +13,18 @@ on:
     - cron: "23 10 * * 1"
   workflow_dispatch:
 
-# Keep the workflow-wide token read-only. Only trusted branch/scheduled
-# analyses receive permission to publish Code Scanning results.
 permissions:
   actions: read
   contents: read
   pull-requests: read
 
 concurrency:
-  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  group: codeql-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  analyze-pr:
-    name: Analyze GitHub Actions (PR, no upload)
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      actions: read
-      contents: read
-      pull-requests: read
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
-        with:
-          languages: actions
-          build-mode: none
-          queries: security-extended
-
-      - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@v4
-        with:
-          category: "/language:actions"
-          upload: never
-
   analyze:
-    name: Analyze and publish GitHub Actions
-    if: github.event_name != 'pull_request'
+    name: Analyze GitHub Actions
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -62,17 +33,76 @@ jobs:
       pull-requests: read
       security-events: write
     steps:
-      - name: Checkout repository
+      # pull_request_target uses this trusted base-branch workflow definition.
+      - name: Checkout trusted repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # The PR checkout is analyzed as data only. Never execute scripts,
+      # actions, or other code from this directory.
+      - name: Checkout pull request
+        if: github.event_name == 'pull_request_target'
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: src
+          persist-credentials: false
 
       - name: Initialize CodeQL
+        id: codeql_init
         uses: github/codeql-action/init@v4
         with:
           languages: actions
           build-mode: none
           queries: security-extended
+          source-root: ${{ github.event_name == 'pull_request_target' && 'src' || '.' }}
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v4
         with:
           category: "/language:actions"
+          output: ${{ runner.temp }}/codeql-results
+          upload: never
+
+      # The CodeQL CLI supports explicit PR refs, including fork PRs. Upload
+      # only SARIF generated above by this trusted workflow run.
+      - name: Upload pull request results
+        if: github.event_name == 'pull_request_target'
+        env:
+          CODEQL: ${{ steps.codeql_init.outputs.codeql-path }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mapfile -t sarif_files < <(find "${{ runner.temp }}/codeql-results" -maxdepth 1 -type f -name '*.sarif' -print)
+          if [ "${#sarif_files[@]}" -ne 1 ]; then
+            echo "Expected exactly one CodeQL SARIF file, found ${#sarif_files[@]}." >&2
+            exit 1
+          fi
+          "$CODEQL" github upload-results \
+            --repository="$GITHUB_REPOSITORY" \
+            --ref="refs/pull/$PR_NUMBER/head" \
+            --commit="$PR_HEAD_SHA" \
+            --sarif="${sarif_files[0]}" \
+            --checkout-path="$GITHUB_WORKSPACE/src"
+
+      - name: Upload branch results
+        if: github.event_name != 'pull_request_target'
+        env:
+          CODEQL: ${{ steps.codeql_init.outputs.codeql-path }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mapfile -t sarif_files < <(find "${{ runner.temp }}/codeql-results" -maxdepth 1 -type f -name '*.sarif' -print)
+          if [ "${#sarif_files[@]}" -ne 1 ]; then
+            echo "Expected exactly one CodeQL SARIF file, found ${#sarif_files[@]}." >&2
+            exit 1
+          fi
+          "$CODEQL" github upload-results \
+            --repository="$GITHUB_REPOSITORY" \
+            --ref="$GITHUB_REF" \
+            --commit="$GITHUB_SHA" \
+            --sarif="${sarif_files[0]}"
