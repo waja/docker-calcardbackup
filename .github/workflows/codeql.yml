@@ -88,3 +88,34 @@ jobs:
           source-root: src
           output: ${{ runner.temp }}/codeql-results
           upload: never
+
+      # This trusted workflow records only the PR identity and exact source
+      # revision. The publisher validates them against the live PR before use.
+      - name: Record analyzed pull request revision
+        if: success()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require("fs");
+            const pr = context.payload.pull_request;
+            if (!pr?.head?.repo?.id || !pr.head.sha || !pr.number) {
+              throw new Error("Pull request head metadata is incomplete.");
+            }
+            fs.mkdirSync("pr-metadata", { recursive: true });
+            fs.writeFileSync(
+              "pr-metadata/pr.json",
+              JSON.stringify({
+                pullRequestNumber: pr.number,
+                headSha: pr.head.sha,
+                headRepositoryId: pr.head.repo.id,
+                headRepository: pr.head.repo.full_name
+              })
+            );
+
+      - name: Upload trusted pull request metadata
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-pr-metadata
+          path: pr-metadata/pr.json
+          retention-days: 1
