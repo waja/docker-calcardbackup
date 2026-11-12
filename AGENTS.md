@@ -49,10 +49,14 @@ user's request or these working agreements.
   bot-review gate unless a concrete risk justifies its maintenance cost.
   Keep the allowlist narrow and do not bypass checks actually required by
   repository policy. Do not add a separate review or major-version restriction
-  for scanner actions solely because of the update type: incompatible updates
-  are expected to fail the required CI checks; updates that pass those checks
-  remain eligible for automerge. Verify GitHub branch protection/rulesets
-  before claiming that CI or security checks are enforced as required checks.
+  for scanner actions solely because of the update type. Required checks verify
+  that configured CI and scanner steps execute successfully, but they do not
+  guarantee unchanged detection coverage: Trivy and Anchore currently report
+  findings without failing their jobs, while Dockle has a blocking policy.
+  Retaining major scanner-action automerge is an explicit acceptance of that
+  residual risk for this small project, not a claim that green CI proves
+  equivalent scan results. Verify GitHub branch protection/rulesets before
+  claiming that CI or security checks are enforced as required checks.
 - Review automated findings critically. Fix valid, actionable issues, but
   do not follow suggestions blindly or treat every comment as a blocker.
 - After the final push, make sure CI and applicable reviews apply to the
@@ -158,10 +162,15 @@ user's request or these working agreements.
 - Automerge is a policy decision. Keep Dockerfile patch and digest updates
   within the configured policy. For GitHub Actions, only explicitly
   allowlisted packages should be eligible. Major updates of allowlisted
-  scanner actions remain eligible when the required CI checks pass; rely on
-  those checks to reject incompatible updates rather than adding a separate
-  review gate or update-type restriction. Verify the actual Renovate rules
-  before describing that policy as enforced.
+  scanner actions remain eligible under the deliberate low-touch policy.
+  Required checks ensure the configured scanner steps run successfully, but
+  they do not prove that a new action version preserves detection coverage:
+  Trivy and Anchore currently report findings without failing their jobs,
+  whereas Dockle has a blocking policy. Accepting major scanner updates
+  therefore carries a known residual risk that scan behavior or coverage may
+  change without failing CI. This trade-off is intentional for this small
+  project; do not imply that green CI guarantees equivalent scan results.
+  Verify the actual Renovate rules before describing that policy as enforced.
 - Preserve image provenance labels and build metadata unless a deliberate
   change requires otherwise.
 - Treat publishing as a privileged operation. Inspect the actual event
