@@ -16,7 +16,7 @@ jobs:
   analyze-and-upload:
     name: Publish trusted PR analysis
     if: >-
-      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.event == 'pull_request_target' &&
       github.event.workflow_run.conclusion == 'success' &&
       (
         github.event.workflow_run.path == '.github/workflows/codeql.yml' ||
