@@ -104,6 +104,9 @@ jobs:
           ref: ${{ steps.pr.outputs.sha }}
           path: src
           persist-credentials: false
+          # Safe only because this checkout is static-analysis input; no PR
+          # scripts, actions, builds, or configuration are executed.
+          allow-unsafe-pr-checkout: true
 
       - name: Initialize CodeQL
         if: steps.pr.outputs.scan == 'true'
