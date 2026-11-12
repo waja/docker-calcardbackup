@@ -79,8 +79,21 @@ user's request or these working agreements.
   production configuration. Use clearly non-functional placeholders.
 - Treat pull-request-controlled code as untrusted in CI. Do not expose
   publishing credentials or privileged secrets to untrusted PR workflows.
-- Grant CI jobs and automation only the permissions they need. Separate
-  privileged release/publish steps from untrusted validation.
+- Grant CI jobs and automation only the permissions they need. Declare
+  `GITHUB_TOKEN` permissions explicitly at workflow or job level; do not
+  rely on repository defaults when the required scope can be stated.
+  Prefer job-level grants so scanner and validation jobs do not inherit
+  permissions needed only for publishing or reporting.
+- Do not pass `GITHUB_TOKEN` to third-party actions unless their documented
+  functionality requires it. When required, expose it only to the relevant
+  step/job and keep its permissions to the minimum necessary.
+- Treat pull-request workflows as untrusted, especially for same-repository
+  contributions. Keep publishing credentials and write-capable tokens out
+  of PR validation; use event conditions as an additional safeguard, not
+  as a substitute for least-privilege token permissions.
+- Verify the permissions needed by SARIF uploads, scanner integrations,
+  and registry publishing before changing scopes. Do not guess permissions
+  or broaden them merely to make a workflow pass.
 - Verify external actions, images, scripts, and downloaded artifacts before
   relying on them. Pin dependencies where repository policy requires it.
 
