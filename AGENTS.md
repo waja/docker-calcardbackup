@@ -174,11 +174,16 @@ user's request or these working agreements.
   image build and test jobs, artifact handling, and image publishing.
 - `.github/actions/codeql-analysis/action.yml` contains the shared CodeQL
   initialization and analysis steps for GitHub Actions workflow files.
-  `.github/workflows/codeql.yml` invokes it for branch and read-only PR scans;
-  `.github/workflows/codeql-pr-upload.yml` invokes the same action from its
-  trusted default-branch definition to rescan and publish results for the
-  verified PR head. Push, scheduled, and manual runs publish branch results
-  directly.
+  `.github/workflows/codeql.yml` invokes it for trusted branch scans and
+  read-only PR scans. The PR job loads the helper from the trusted base commit
+  and checks out PR source separately as static-analysis input only. Manual
+  dispatch is privileged only on `development` and `master`.
+  `.github/workflows/codeql-pr-upload.yml` runs from the trusted default
+  branch, validates every associated PR against the source run's repository
+  and exact commit, reruns CodeQL using trusted configuration, rechecks each
+  PR immediately before upload, and publishes results for each still-current
+  PR head. It does not cancel concurrent publisher runs. Push, scheduled, and
+  trusted manual runs publish branch results directly.
 - `.github/renovate.json` configures Renovate for Docker and GitHub Actions.
   `.github/dependabot.yml` also configures Dependabot for those ecosystems.
   Their current scopes overlap. Avoid duplicate update PRs by assigning each
