@@ -1,5 +1,9 @@
 name: Docker Image CI
 
+# Default to read-only. Jobs that publish or upload SARIF opt in explicitly.
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
   push:
@@ -20,6 +24,9 @@ env:
 jobs:
   super-linter:
     name: super-linter
+    permissions:
+      contents: read
+      statuses: write
     strategy:
       fail-fast: false
     runs-on: ubuntu-latest
@@ -30,6 +37,7 @@ jobs:
           # super-linter needs the full git history to get the
           # list of files that changed across commits
           fetch-depth: 0
+          persist-credentials: false
       - name: Lint Code Base
         uses: super-linter/super-linter@v9.0.0
         env:
@@ -40,35 +48,46 @@ jobs:
           VALIDATE_BIOME_FORMAT: false
   shiftleft:
     name: shiftleft
+    permissions:
+      contents: read
+      packages: read
     strategy:
       fail-fast: false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Perform ShiftLeft Scan
         uses: ShiftLeftSecurity/scan-action@v1.3.0
         env:
           WORKSPACE: ""
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SCAN_ANNOTATE_PR: false
           SCAN_AUTO_BUILD: true
         with:
           output: reports
           # Scan auto-detects the languages in your project. To override uncomment the below variable and set the type
           # type: credscan,java
           # type: python
-      - name: Upload report
-        uses: github/codeql-action/upload-sarif@v4
+      - name: Upload report artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v7
         with:
-          sarif_file: reports
+          name: shiftleft-sarif
+          path: reports
+          retention-days: 1
   test-build:
     needs:
       - super-linter
-      - shiftleft
     strategy:
       fail-fast: false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Test startup option handling
         run: bash tests/test_calcard_opts.sh
       - name: Set up QEMU
@@ -167,6 +186,8 @@ jobs:
           docker image ls -a
           docker push localhost:5000/foobar/${{ env.IMAGE_NAME }}
       - name: Run dockle container image linter
+        id: dockle
+        continue-on-error: true
         uses: goodwithtech/dockle-action@v0.4.15
         with:
           image: "registry:5000/foobar/${{ env.IMAGE_NAME }}"
@@ -175,11 +196,18 @@ jobs:
           exit-code: "1"
           exit-level: "warn"
           ignore: "CIS-DI-0001,CIS-DI-0010,DKL-DI-0006"
-          output: sarif-reports
-      - name: Upload Reports
-        uses: github/codeql-action/upload-sarif@v4
+          output: dockle.sarif
+      - name: Upload SARIF artifact
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v7
         with:
-          sarif_file: "sarif-reports"
+          name: dockle-sarif
+          path: dockle.sarif
+          retention-days: 1
+          if-no-files-found: ignore
+      - name: Fail job when Dockle reports findings
+        if: always() && steps.dockle.outcome == 'failure'
+        run: exit 1
   trivy:
     name: Run Trivy tests
     needs:
@@ -211,10 +239,13 @@ jobs:
           template: "@/contrib/sarif.tpl"
           output: "trivy-results.sarif"
           severity: "CRITICAL,HIGH"
-      - name: Upload Reports
-        uses: github/codeql-action/upload-sarif@v4
+      - name: Upload SARIF artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v7
         with:
-          sarif_file: "trivy-results.sarif"
+          name: trivy-sarif
+          path: trivy-results.sarif
+          retention-days: 1
   anchore:
     name: Run Anchore tests
     needs:
@@ -238,23 +269,115 @@ jobs:
           docker load --input /tmp/${{ env.IMAGE_NAME }}-${{ github.run_number }}.tar
           docker image ls -a
           docker push localhost:5000/foobar/${{ env.IMAGE_NAME }}
-      - name: Run the Anchore scan action itself with GitHub Advanced Security code scanning integration enabled
+      - name: Run Anchore vulnerability scan
         uses: anchore/scan-action@v7.4.2
         with:
           image: localhost:5000/foobar/${{ env.IMAGE_NAME }}
-          acs-report-enable: true
+          # SARIF is uploaded by the separate least-privilege uploader job.
+          output-format: sarif
           fail-build: false
           output-file: "./results.sarif"
       - name: Move reports
+        if: github.event_name != 'pull_request'
         run: mkdir -p sarif-reports && cp ./results.sarif ./sarif-reports/
-      - name: Upload Reports
-        uses: github/codeql-action/upload-sarif@v4
+      - name: Upload SARIF artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v7
         with:
-          sarif_file: "sarif-reports"
+          name: anchore-sarif
+          path: sarif-reports
+          retention-days: 1
+  upload-shiftleft-sarif:
+    name: Upload ShiftLeft SARIF
+    needs: shiftleft
+    if: always() && github.event_name != 'pull_request' && needs.shiftleft.result == 'success'
+    permissions:
+      contents: read
+      security-events: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: shiftleft-sarif
+          path: sarif-reports/shiftleft
+      - uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-reports/shiftleft
+  upload-dockle-sarif:
+    name: Upload Dockle SARIF
+    needs: dockle
+    if: always() && github.event_name != 'pull_request' && (needs.dockle.result == 'success' || needs.dockle.result == 'failure')
+    permissions:
+      contents: read
+      security-events: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: dockle-sarif
+          path: sarif-reports/dockle
+      - uses: github/codeql-action/upload-sarif@v4
+        if: success() && hashFiles('sarif-reports/dockle/dockle.sarif') != ''
+        with:
+          sarif_file: sarif-reports/dockle/dockle.sarif
+  upload-trivy-sarif:
+    name: Upload Trivy SARIF
+    needs: trivy
+    if: always() && github.event_name != 'pull_request' && needs.trivy.result == 'success'
+    permissions:
+      contents: read
+      security-events: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: trivy-sarif
+          path: sarif-reports/trivy
+      - uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-reports/trivy/trivy-results.sarif
+  upload-anchore-sarif:
+    name: Upload Anchore SARIF
+    needs: anchore
+    if: always() && github.event_name != 'pull_request' && needs.anchore.result == 'success'
+    permissions:
+      contents: read
+      security-events: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: anchore-sarif
+          path: sarif-reports/anchore
+      - uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-reports/anchore
   release-docker:
     name: Release Docker images
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
     needs:
       - test
+      - shiftleft
       - dockle
       - trivy
       - anchore
@@ -264,6 +387,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Prepare
         id: prep
