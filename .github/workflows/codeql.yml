@@ -25,7 +25,12 @@ concurrency:
 jobs:
   analyze:
     name: Analyze GitHub Actions
-    if: github.event_name != 'pull_request'
+    # A manual dispatch may select an arbitrary branch. Only trusted branches
+    # may run the scanner with permission to publish CodeQL results.
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      github.ref == 'refs/heads/development' ||
+      github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -55,13 +60,27 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - name: Checkout repository
+      # The workflow and its helper action come from the trusted base revision.
+      - name: Checkout trusted workflow helpers
         uses: actions/checkout@v7
         with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: trusted
           persist-credentials: false
 
-      - name: Analyze with CodeQL
-        uses: ./.github/actions/codeql-analysis
+      # PR source is input data for CodeQL only; never execute PR-controlled
+      # scripts, actions, builds, or configuration.
+      - name: Checkout pull request
+        uses: actions/checkout@v7
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: src
+          persist-credentials: false
+          allow-unsafe-pr-checkout: true
+
+      - name: Analyze with CodeQL
+        uses: ./trusted/.github/actions/codeql-analysis
+        with:
+          source-root: src
           output: ${{ runner.temp }}/codeql-results
           upload: never
