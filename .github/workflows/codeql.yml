@@ -50,6 +50,7 @@ jobs:
       - name: Analyze with CodeQL
         uses: ./.github/actions/codeql-analysis
         with:
+          config-file: .github/codeql/codeql-config.yml
           output: ${{ runner.temp }}/codeql-results
           upload: always
 
@@ -88,6 +89,7 @@ jobs:
         uses: ./trusted/.github/actions/codeql-analysis
         with:
           source-root: src
+          config-file: trusted/.github/codeql/codeql-config.yml
           output: ${{ runner.temp }}/codeql-results
           upload: never
 
