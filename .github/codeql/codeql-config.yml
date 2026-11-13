@@ -1,0 +1,3 @@
+name: Trusted GitHub Actions CodeQL configuration
+queries:
+  - uses: security-extended
