@@ -177,8 +177,8 @@ user's request or these working agreements.
   `.github/workflows/codeql.yml` invokes it for trusted branch scans and
   read-only `pull_request_target` scans. The PR job runs from the trusted base
   workflow, loads the helper from the trusted base commit, and checks out PR
-  source separately as static-analysis input only. Manual
-  dispatch is privileged only on `development` and `master`.
+  source separately as static-analysis input only. Manual dispatch is
+  privileged only on `development` and `master`.
   `.github/workflows/codeql-pr-upload.yml` runs from the trusted default
   branch. The trusted PR scan passes only its PR number, source repository,
   and exact head SHA through a small metadata artifact (never SARIF). The
@@ -239,6 +239,18 @@ user's request or these working agreements.
   dedicated GitHub Actions CodeQL scanner. Inspect both workflows' job
   dependencies and event conditions before changing them; do not assume every
   job runs for every event.
+- Scanner jobs execute on pull requests, but do not persist raw SARIF
+  reports as workflow artifacts for those runs. SARIF artifacts are uploaded
+  only for non-PR events and are short-lived; separate uploader jobs grant
+  `security-events: write` only on those trusted events. Never expose that
+  permission to a workflow definition or code controlled by a pull request.
+  Pull-request SARIF publication is intentionally deferred to issue #256,
+  which must provide a trusted handoff without public report artifacts.
+  Do not switch to `pull_request_target` or expose additional credentials to
+  PR-controlled code. These restrictions apply to the container scanners in
+  `docker.image.yml`; the separate CodeQL pull-request workflow uses
+  `pull_request_target` with trusted workflow code and read-only scan
+  permissions.
 - Keep CodeQL pull-request analysis read-only. The separate
   `codeql-pr-upload.yml` workflow must run from the default branch, verify the
   current PR head against the completed source run, and rerun the scanner from
