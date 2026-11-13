@@ -1,5 +1,6 @@
 name: PR SARIF Handoff POC
 
+#checkov:skip=CKV_GHA_7: Manual inputs are validated identifiers and an explicit opt-in; the trusted workflow never executes PR code.
 on:
   workflow_dispatch:
     inputs:
