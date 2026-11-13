@@ -10,13 +10,9 @@ cat >"$tmp_dir/bin/tail" <<'STUB'
 #!/usr/bin/env bash
 exit 0
 STUB
-cat >"$tmp_dir/bin/crontab" <<'STUB'
+cat >"$tmp_dir/bin/supercronic" <<'STUB'
 #!/usr/bin/env bash
-cp "$1" "$CAPTURED_CRONTAB"
-STUB
-cat >"$tmp_dir/bin/crond" <<'STUB'
-#!/usr/bin/env bash
-printf '%s\n' "$@" >"$CROND_ARGS"
+printf '%s\n' "$@" >"$SUPERCRONIC_ARGS"
 STUB
 chmod +x "$tmp_dir/bin/"*
 
@@ -35,7 +31,7 @@ export CALCARD_OPTS="--custom-flag --keep-existing"
 
 grep -Fxq '[client]' "$MARIADB_CLIENT_CNF"
 grep -Fxq 'skip-ssl = true' "$MARIADB_CLIENT_CNF"
-grep -Fq '/opt/calcardbackup/calcardbackup /nextcloud/ --output /backup/ --custom-flag --keep-existing --read-mysql-optionfiles' "$CAPTURED_CRONTAB"
-grep -Fxq -- '-f' "$CROND_ARGS"
+grep -Fq '/opt/calcardbackup/calcardbackup /nextcloud/ --output /backup/ --custom-flag --keep-existing --read-mysql-optionfiles' "$CRONTAB_FILE"
+grep -Fxq -- "$CRONTAB_FILE" "$SUPERCRONIC_ARGS"
 
 printf 'run.sh preserves custom CALCARD_OPTS when MARIADB_SSL_SKIP=true\n'
