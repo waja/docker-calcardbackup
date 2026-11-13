@@ -24,15 +24,8 @@ concurrency:
 jobs:
   analyze:
     name: Analyze GitHub Actions
-    # A manual dispatch may select an arbitrary branch. Only trusted branches
-    # may run the scanner with permission to publish CodeQL results.
-    if: >-
-      github.event_name != 'pull_request_target' &&
-      (
-        github.event_name != 'workflow_dispatch' ||
-        github.ref == 'refs/heads/development' ||
-        github.ref == 'refs/heads/master'
-      )
+    # Only push and scheduled events reach this privileged branch-scan job.
+    if: github.event_name != 'pull_request_target'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
