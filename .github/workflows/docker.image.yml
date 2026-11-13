@@ -70,13 +70,7 @@ jobs:
           # type: credscan,java
           # type: python
       - name: Upload report artifact
-        # Publish only from trusted refs; never expose registry secrets to PRs or feature branches.
-    if: >-
-      github.event_name == 'schedule' ||
-      startsWith(github.ref, 'refs/tags/') ||
-      github.ref == 'refs/heads/development' ||
-      github.ref == 'refs/heads/master' ||
-      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
         with:
           name: shiftleft-sarif
@@ -376,7 +370,13 @@ jobs:
           sarif_file: sarif-reports/anchore
   release-docker:
     name: Release Docker images
-    if: github.event_name != 'pull_request'
+    # Publish only from trusted refs; never expose registry secrets to PRs or feature branches.
+    if: >-
+      github.event_name == 'schedule' ||
+      startsWith(github.ref, 'refs/tags/') ||
+      github.ref == 'refs/heads/development' ||
+      github.ref == 'refs/heads/master' ||
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     permissions:
       contents: read
       packages: write
