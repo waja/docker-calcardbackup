@@ -1,126 +1,114 @@
 name: PR SARIF Handoff POC
 
-#checkov:skip=CKV_GHA_7: Manual inputs are validated identifiers and an explicit opt-in; the trusted workflow never executes PR code.
+# This workflow is loaded from the default branch by workflow_run. Never dispatch
+# it from a PR ref: its upload job has a narrowly scoped Code Scanning token.
 on:
-  workflow_dispatch:
-    inputs:
-      source_run_id:
-        description: Successful pull_request run ID from Docker Image CI
-        required: true
-        type: string
-      upload_sarif:
-        description: Upload validated SARIF to Code Scanning (keep false for dry-run)
-        required: true
-        default: false
-        type: boolean
+  workflow_run:
+    workflows: ["Docker Image CI"]
+    types: [completed]
 
 permissions:
+  actions: read
   contents: read
+  pull-requests: read
 
 jobs:
-  verify-source:
-    name: Verify source run and image artifact
+  scan:
+    name: Rebuild with trusted Dockerfile and scan as data
+    if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
     outputs:
       pr_number: ${{ steps.verify.outputs.pr_number }}
       head_sha: ${{ steps.verify.outputs.head_sha }}
-      artifact_name: ${{ steps.verify.outputs.artifact_name }}
+      sarif_0: ${{ steps.pack.outputs.sarif_0 }}
+      sarif_1: ${{ steps.pack.outputs.sarif_1 }}
+      sarif_2: ${{ steps.pack.outputs.sarif_2 }}
+      sarif_3: ${{ steps.pack.outputs.sarif_3 }}
+      sarif_4: ${{ steps.pack.outputs.sarif_4 }}
+      sarif_5: ${{ steps.pack.outputs.sarif_5 }}
+      sarif_6: ${{ steps.pack.outputs.sarif_6 }}
+      sarif_7: ${{ steps.pack.outputs.sarif_7 }}
+      sarif_8: ${{ steps.pack.outputs.sarif_8 }}
+      sarif_9: ${{ steps.pack.outputs.sarif_9 }}
     steps:
-      - name: Verify source run, PR identity, jobs and artifact metadata
+      - name: Verify completed source run and resolve full PR
         id: verify
         env:
           GH_TOKEN: ${{ github.token }}
-          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
           REPOSITORY: ${{ github.repository }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
+          HEAD_REPOSITORY_ID: ${{ github.event.workflow_run.head_repository.id }}
         run: |
           set -euo pipefail
-          [[ "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]] || { echo "source_run_id must be numeric" >&2; exit 1; }
+          [[ "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]]
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ -n "$HEAD_REPOSITORY" && "$HEAD_REPOSITORY_ID" =~ ^[0-9]+$ ]]
 
           run="$(gh api "repos/$REPOSITORY/actions/runs/$SOURCE_RUN_ID")"
-          jq -e --arg repo "$REPOSITORY" '
+          jq -e --arg repo "$REPOSITORY" --arg sha "$EXPECTED_SHA" --arg head_repo "$HEAD_REPOSITORY" --argjson head_repo_id "$HEAD_REPOSITORY_ID" '
             .repository.full_name == $repo and
             .event == "pull_request" and
             .status == "completed" and
             .conclusion == "success" and
-            .path == ".github/workflows/docker.image.yml" and
+            (.path | split("@")[0]) == ".github/workflows/docker.image.yml" and
             .workflow_id == 3382216 and
-            (.head_sha | type == "string" and length == 40) and
-            (.head_repository.id | type == "number")
-          ' <<<"$run" >/dev/null || { echo "Source run is not a successful PR run of the expected workflow/repository" >&2; exit 1; }
-
-          run_number="$(jq -r '.run_number' <<<"$run")"
-          head_sha="$(jq -r '.head_sha' <<<"$run")"
-          head_repo_id="$(jq -r '.head_repository.id' <<<"$run")"
-          head_repo_full_name="$(jq -r '.head_repository.full_name' <<<"$run")"
-          head_branch="$(jq -r '.head_branch' <<<"$run")"
+            .head_sha == $sha and
+            .head_repository.full_name == $head_repo and
+            .head_repository.id == $head_repo_id
+          ' <<<"$run" >/dev/null
 
           jobs="$(gh api --paginate "repos/$REPOSITORY/actions/runs/$SOURCE_RUN_ID/jobs?per_page=100" --jq '.jobs')"
-          jq -e 'any(.[]; .name == "test-build" and .conclusion == "success")' <<<"$jobs" >/dev/null || {
-            echo "The source run did not complete test-build successfully" >&2
+          jq -e 'any(.[]; .name == "test-build" and .conclusion == "success")' <<<"$jobs" >/dev/null
+
+          prs="$(gh api --paginate "repos/$REPOSITORY/commits/$EXPECTED_SHA/pulls?per_page=100")"
+          matches="$(jq --arg repo "$REPOSITORY" --arg sha "$EXPECTED_SHA" --argjson repo_id "$HEAD_REPOSITORY_ID" '
+            [.[] | select(
+              .state == "open" and
+              .base.repo.full_name == $repo and
+              .head.sha == $sha and
+              .head.repo.id == $repo_id
+            )]
+          ' <<<"$prs")"
+          [[ "$(jq 'length' <<<"$matches")" -eq 1 ]] || {
+            echo "Could not resolve exactly one open PR matching the source run repository and head SHA" >&2
             exit 1
           }
+          pr_number="$(jq -r '.[0].number' <<<"$matches")"
+          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$EXPECTED_SHA" >> "$GITHUB_OUTPUT"
 
-          prs="$(jq -c '.pull_requests // []' <<<"$run")"
-          if [[ "$(jq 'length' <<<"$prs")" -eq 0 ]]; then
-            owner="${head_repo_full_name%%/*}"
-            prs="$(gh api --method GET "repos/$REPOSITORY/pulls" -f state=open -f "head=$owner:$head_branch")"
-          fi
-          [[ "$(jq 'length' <<<"$prs")" -eq 1 ]] || { echo "Could not resolve exactly one open PR for source run" >&2; exit 1; }
-
-          pr="$(jq '.[0]' <<<"$prs")"
-          pr_number="$(jq -r '.number' <<<"$pr")"
-          jq -e --arg sha "$head_sha" --argjson repo_id "$head_repo_id" '
-            .state == "open" and
-            .head.sha == $sha and
-            .head.repo.id == $repo_id and
-            .base.repo.full_name == env.REPOSITORY
-          ' <<<"$pr" >/dev/null || { echo "PR identity, base repository, or head SHA does not match source run" >&2; exit 1; }
-
-          artifact_name="calcardbackup-$run_number"
-          artifacts="$(gh api --paginate "repos/$REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100" --jq '.artifacts')"
-          jq -e --arg name "$artifact_name" --argjson run_id "$SOURCE_RUN_ID" --arg sha "$head_sha" --argjson repo_id "$head_repo_id" '
-            any(.[]; .name == $name and .expired == false and .workflow_run.id == $run_id and .workflow_run.head_sha == $sha and .workflow_run.head_repository_id == $repo_id and .size_in_bytes > 0)
-          ' <<<"$artifacts" >/dev/null || { echo "Expected image artifact missing, expired, or not owned by source run" >&2; exit 1; }
-
-          {
-            echo "pr_number=$pr_number"
-            echo "head_sha=$head_sha"
-            echo "artifact_name=$artifact_name"
-          } >> "$GITHUB_OUTPUT"
-
-  scan-image:
-    name: Scan verified image artifact
-    needs: verify-source
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    outputs:
-      dockle: ${{ steps.pack.outputs.dockle }}
-      trivy: ${{ steps.pack.outputs.trivy }}
-      anchore: ${{ steps.pack.outputs.anchore }}
-    steps:
-      - name: Download verified image artifact
-        uses: actions/download-artifact@v8
+      - name: Checkout PR source at the verified immutable commit
+        uses: actions/checkout@v7
         with:
-          name: ${{ needs.verify-source.outputs.artifact_name }}
-          run-id: ${{ inputs.source_run_id }}
-          github-token: ${{ github.token }}
-          path: /tmp/image
+          repository: ${{ github.event.workflow_run.head_repository.full_name }}
+          ref: ${{ github.event.workflow_run.head_sha }}
+          path: pr-source
+          persist-credentials: false
 
-      - name: Load image as data (do not start it)
+      - name: Checkout trusted Dockerfile from default branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted
+          sparse-checkout: Dockerfile
+          persist-credentials: false
+
+      - name: Build image using only the trusted Dockerfile
         run: |
           set -euo pipefail
-          image_tar="$(find /tmp/image -maxdepth 1 -type f -name '*.tar' -print -quit)"
-          test -n "$image_tar"
-          docker load --input "$image_tar"
-          docker image inspect localhost:5000/foobar/calcardbackup >/dev/null
+          docker build --pull --file trusted/Dockerfile --tag localhost:5000/foobar/calcardbackup:pr-scan pr-source
 
       - name: Run Dockle
-        id: dockle
-        continue-on-error: true
         uses: goodwithtech/dockle-action@v0.4.15
+        continue-on-error: true
         with:
-          image: localhost:5000/foobar/calcardbackup
+          image: localhost:5000/foobar/calcardbackup:pr-scan
           format: sarif
           exit-code: "1"
           exit-level: warn
@@ -130,7 +118,7 @@ jobs:
       - name: Run Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: localhost:5000/foobar/calcardbackup
+          image-ref: localhost:5000/foobar/calcardbackup:pr-scan
           format: template
           template: "@/contrib/sarif.tpl"
           output: trivy.sarif
@@ -139,142 +127,140 @@ jobs:
       - name: Run Anchore
         uses: anchore/scan-action@v7.4.2
         with:
-          image: localhost:5000/foobar/calcardbackup
+          image: localhost:5000/foobar/calcardbackup:pr-scan
           output-format: sarif
           fail-build: false
           output-file: anchore.sarif
 
-      - name: Validate and encode SARIF for job-output handoff
+      - name: Validate and pack combined SARIF into bounded chunks
         id: pack
         run: |
           set -euo pipefail
-          encode_report() {
-            local name="$1" file="$2" encoded
+          for file in dockle.sarif trivy.sarif anchore.sarif; do
             test -s "$file"
             jq -e '
               .version == "2.1.0" and
               (.runs | type == "array" and length > 0) and
               all(.runs[]; (.tool.driver.name | type == "string" and length > 0))
             ' "$file" >/dev/null
-            encoded="$(gzip -n -c "$file" | base64 -w0)"
-            if (( ${#encoded} > 280000 )); then
-              echo "$name SARIF exceeds the conservative per-report output budget" >&2
-              exit 1
-            fi
-            printf '%s=%s\n' "$name" "$encoded" >> "$GITHUB_OUTPUT"
-            printf '%s\n' "${#encoded}" >> /tmp/sarif-output-sizes
-          }
-          : > /tmp/sarif-output-sizes
-          encode_report dockle dockle.sarif
-          encode_report trivy trivy.sarif
-          encode_report anchore anchore.sarif
-          total="$(awk '{sum += $1} END {print sum}' /tmp/sarif-output-sizes)"
-          if (( total > 850000 )); then
-            echo "Combined SARIF outputs exceed conservative 850000-character budget" >&2
-            exit 1
-          fi
-          echo "Encoded SARIF payload size: $total characters"
-
-  validate-sarif:
-    name: Validate SARIF handoff (dry-run)
-    needs:
-      - verify-source
-      - scan-image
-    if: always() && needs.verify-source.result == 'success' && needs.scan-image.result == 'success'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Re-verify PR head after scan
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          PR_NUMBER: ${{ needs.verify-source.outputs.pr_number }}
-          EXPECTED_SHA: ${{ needs.verify-source.outputs.head_sha }}
-        run: |
-          set -euo pipefail
-          pr="$(gh api "repos/$REPOSITORY/pulls/$PR_NUMBER")"
-          jq -e --arg sha "$EXPECTED_SHA" --arg repo "$REPOSITORY" '
-            .state == "open" and .head.sha == $sha and .base.repo.full_name == $repo
-          ' <<<"$pr" >/dev/null || { echo "PR changed or closed after scan" >&2; exit 1; }
-
-      - name: Validate transferred SARIF and report payload sizes
-        env:
-          DOCKLE: ${{ needs.scan-image.outputs.dockle }}
-          TRIVY: ${{ needs.scan-image.outputs.trivy }}
-          ANCHORE: ${{ needs.scan-image.outputs.anchore }}
-        run: |
-          set -euo pipefail
-          for name in DOCKLE TRIVY ANCHORE; do
-            value="${!name}"
-            test -n "$value"
-            (( ${#value} <= 280000 ))
-            printf '%s' "$value" | base64 -d | gzip -t
-            printf '%s' "$value" | base64 -d | gzip -dc | jq -e '
-              .version == "2.1.0" and (.runs | type == "array" and length > 0)
-            ' >/dev/null
-            echo "$name: ${#value} encoded characters; transfer and SARIF validation succeeded"
           done
 
-  upload-sarif:
-    name: Upload SARIF (explicit opt-in)
-    needs:
-      - verify-source
-      - scan-image
-      - validate-sarif
-    if: inputs.upload_sarif && needs.verify-source.result == 'success' && needs.scan-image.result == 'success' && needs.validate-sarif.result == 'success'
+          jq -s '{version:"2.1.0", $schema:"https://json.schemastore.org/sarif-2.1.0.json", runs: map(.runs[]) }' \
+            dockle.sarif trivy.sarif anchore.sarif > combined.sarif
+          jq -e '.version == "2.1.0" and (.runs | length >= 3)' combined.sarif >/dev/null
+          encoded="$(base64 -w0 combined.sarif)"
+          # Keep the whole job output comfortably below GitHub's 1 MB limit.
+          (( ${#encoded} <= 300000 )) || {
+            echo "Combined SARIF exceeds the 300000-character handoff budget" >&2
+            exit 1
+          }
+          for index in {0..9}; do
+            start=$((index * 30000))
+            chunk="${encoded:start:30000}"
+            printf 'sarif_%s=%s\n' "$index" "$chunk" >> "$GITHUB_OUTPUT"
+          done
+          echo "Combined validated SARIF encoded size: ${#encoded} characters"
+
+  upload:
+    name: Upload verified SARIF
+    needs: scan
+    if: needs.scan.result == 'success' && vars.ENABLE_PR_SARIF_UPLOAD == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: read
       security-events: write
     steps:
-      - name: Re-verify PR head immediately before reporting
-        id: target
+      - name: Recheck PR identity and head immediately before upload
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
-          PR_NUMBER: ${{ needs.verify-source.outputs.pr_number }}
-          EXPECTED_SHA: ${{ needs.verify-source.outputs.head_sha }}
+          PR_NUMBER: ${{ needs.scan.outputs.pr_number }}
+          EXPECTED_SHA: ${{ needs.scan.outputs.head_sha }}
         run: |
           set -euo pipefail
           pr="$(gh api "repos/$REPOSITORY/pulls/$PR_NUMBER")"
-          jq -e --arg sha "$EXPECTED_SHA" --arg repo "$REPOSITORY" '
-            .state == "open" and .head.sha == $sha and .base.repo.full_name == $repo
-          ' <<<"$pr" >/dev/null || { echo "PR changed or closed immediately before upload; refusing SARIF report" >&2; exit 1; }
-          echo "pr_ref=refs/pull/$PR_NUMBER/head" >> "$GITHUB_OUTPUT"
+          jq -e --arg repo "$REPOSITORY" --arg sha "$EXPECTED_SHA" '
+            .state == "open" and
+            .base.repo.full_name == $repo and
+            .head.sha == $sha and
+            .head.repo.full_name != null
+          ' <<<"$pr" >/dev/null || {
+            echo "PR is closed, retargeted, or has moved since scanning; refusing upload" >&2
+            exit 1
+          }
 
-      - name: Upload Dockle SARIF
+      - name: Reassemble bounded SARIF chunks and submit once
+        id: submit
+        env:
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ needs.scan.outputs.pr_number }}
+          HEAD_SHA: ${{ needs.scan.outputs.head_sha }}
+          SARIF_0: ${{ needs.scan.outputs.sarif_0 }}
+          SARIF_1: ${{ needs.scan.outputs.sarif_1 }}
+          SARIF_2: ${{ needs.scan.outputs.sarif_2 }}
+          SARIF_3: ${{ needs.scan.outputs.sarif_3 }}
+          SARIF_4: ${{ needs.scan.outputs.sarif_4 }}
+          SARIF_5: ${{ needs.scan.outputs.sarif_5 }}
+          SARIF_6: ${{ needs.scan.outputs.sarif_6 }}
+          SARIF_7: ${{ needs.scan.outputs.sarif_7 }}
+          SARIF_8: ${{ needs.scan.outputs.sarif_8 }}
+          SARIF_9: ${{ needs.scan.outputs.sarif_9 }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          encoded="${SARIF_0}${SARIF_1}${SARIF_2}${SARIF_3}${SARIF_4}${SARIF_5}${SARIF_6}${SARIF_7}${SARIF_8}${SARIF_9}"
+          test -n "$encoded"
+          (( ${#encoded} <= 300000 ))
+          printf '%s' "$encoded" | base64 -d > combined.sarif
+          jq -e '.version == "2.1.0" and (.runs | length >= 3)' combined.sarif >/dev/null
+
+          # Recheck a second time directly before creating the upload.
+          pr="$(gh api "repos/$REPOSITORY/pulls/$PR_NUMBER")"
+          jq -e --arg repo "$REPOSITORY" --arg sha "$HEAD_SHA" '
+            .state == "open" and .base.repo.full_name == $repo and .head.sha == $sha
+          ' <<<"$pr" >/dev/null
+
+          sarif="$(base64 -w0 combined.sarif)"
+          payload="$(jq -n --arg commit "$HEAD_SHA" --arg ref "refs/pull/$PR_NUMBER/head" --arg data "$sarif" '
+            {commit_sha:$commit, ref:$ref, sarif:$data, tool_name:"Calcardbackup image scanners"}
+          ')"
+          response="$(gh api --method POST "repos/$REPOSITORY/code-scanning/sarifs" --input <(printf '%s' "$payload"))"
+          upload_id="$(jq -r '.id // empty' <<<"$response")"
+          [[ -n "$upload_id" ]] || {
+            echo "SARIF API did not return an upload ID" >&2
+            exit 1
+          }
+          echo "upload_id=$upload_id" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for GitHub Code Scanning to process SARIF
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
-          PR_REF: ${{ steps.target.outputs.pr_ref }}
-          HEAD_SHA: ${{ needs.verify-source.outputs.head_sha }}
-          SARIF: ${{ needs.scan-image.outputs.dockle }}
+          UPLOAD_ID: ${{ steps.submit.outputs.upload_id }}
         run: |
           set -euo pipefail
-          payload="$(jq -n --arg commit "$HEAD_SHA" --arg ref "$PR_REF" --arg sarif "$SARIF" '{commit_sha:$commit,ref:$ref,sarif:$sarif,tool_name:"Dockle"}')"
-          gh api --method POST "repos/$REPOSITORY/code-scanning/sarifs" --input <(printf '%s' "$payload")
-
-      - name: Upload Trivy SARIF
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          PR_REF: ${{ steps.target.outputs.pr_ref }}
-          HEAD_SHA: ${{ needs.verify-source.outputs.head_sha }}
-          SARIF: ${{ needs.scan-image.outputs.trivy }}
-        run: |
-          set -euo pipefail
-          payload="$(jq -n --arg commit "$HEAD_SHA" --arg ref "$PR_REF" --arg sarif "$SARIF" '{commit_sha:$commit,ref:$ref,sarif:$sarif,tool_name:"Trivy"}')"
-          gh api --method POST "repos/$REPOSITORY/code-scanning/sarifs" --input <(printf '%s' "$payload")
-
-      - name: Upload Anchore SARIF
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          PR_REF: ${{ steps.target.outputs.pr_ref }}
-          HEAD_SHA: ${{ needs.verify-source.outputs.head_sha }}
-          SARIF: ${{ needs.scan-image.outputs.anchore }}
-        run: |
-          set -euo pipefail
-          payload="$(jq -n --arg commit "$HEAD_SHA" --arg ref "$PR_REF" --arg sarif "$SARIF" '{commit_sha:$commit,ref:$ref,sarif:$sarif,tool_name:"Anchore"}')"
-          gh api --method POST "repos/$REPOSITORY/code-scanning/sarifs" --input <(printf '%s' "$payload")
+          for attempt in {1..30}; do
+            status="$(gh api "repos/$REPOSITORY/code-scanning/sarifs/$UPLOAD_ID")"
+            state="$(jq -r '.processing_status // empty' <<<"$status")"
+            case "$state" in
+              complete)
+                echo "GitHub completed SARIF processing"
+                exit 0
+                ;;
+              failed)
+                jq -r '.errors // .message // "SARIF processing failed"' <<<"$status" >&2
+                exit 1
+                ;;
+              pending)
+                sleep 10
+                ;;
+              *)
+                echo "Unexpected SARIF processing state: $state" >&2
+                jq . <<<"$status" >&2
+                exit 1
+                ;;
+            esac
+          done
+          echo "Timed out waiting for SARIF processing" >&2
+          exit 1
