@@ -71,6 +71,7 @@ jobs:
             [.[] | select(
               .state == "open" and
               .base.repo.full_name == $repo and
+              .base.ref == "development" and
               .head.sha == $sha and
               .head.repo.id == $repo_id
             )]
@@ -183,6 +184,7 @@ jobs:
           jq -e --arg repo "$REPOSITORY" --arg sha "$EXPECTED_SHA" '
             .state == "open" and
             .base.repo.full_name == $repo and
+            .base.ref == "development" and
             .head.sha == $sha and
             .head.repo.full_name != null
           ' <<<"$pr" >/dev/null || {
