@@ -33,6 +33,7 @@ jobs:
       # This small artifact is produced by the trusted pull_request_target
       # workflow. It contains PR identity/revision metadata, never SARIF.
       - name: Download trusted pull request metadata
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: codeql-pr-metadata-${{ github.event.workflow_run.run_attempt }}
@@ -40,7 +41,20 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
 
+      - name: Check trusted pull request metadata
+        id: metadata
+        if: always()
+        shell: bash
+        run: |
+          if [ -s pr-metadata/pr.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "No metadata artifact was produced; the source PR scan was skipped."
+          fi
+
       - name: Verify current pull request revision
+        if: steps.metadata.outputs.present == 'true'
         id: pr
         uses: actions/github-script@v8
         with:
