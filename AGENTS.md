@@ -166,7 +166,7 @@ user's request or these working agreements.
   upstream version through `CALCARDBACKUP_VERSION`.
 - `run.sh` configures the backup command, optionally waits for Nextcloud
   and the database before an initial backup, writes cron configuration,
-  and starts `crond` in the foreground.
+  and starts `supercronic` in the foreground.
 - `README.md` documents image usage and environment variables.
 - `docker-compose-example.yml` and
   `docker-compose-complex-example.yml` are deployment examples.
