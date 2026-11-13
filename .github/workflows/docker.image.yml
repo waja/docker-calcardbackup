@@ -53,7 +53,7 @@ jobs:
           SCAN_AUTO_BUILD: true
         with:
           output: reports
-          # Scan auto-detects the languages in this project. To override uncomment the below variable and set the type
+          # Scan auto-detects the languages in your project. To override uncomment the below variable and set the type
           # type: credscan,java
           # type: python
       - name: Upload report
@@ -228,7 +228,6 @@ jobs:
         ports:
           - 5000:5000
     steps:
-      - uses: actions/checkout@v7
       - name: Download artifact
         uses: actions/download-artifact@v8
         with:
