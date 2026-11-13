@@ -184,9 +184,23 @@ user's request or these working agreements.
   and exact head SHA through a small metadata artifact (never SARIF). The
   publisher validates that metadata against the live PR, reruns CodeQL using
   trusted configuration, rechecks the PR immediately before upload, and
-  publishes only if the head still matches. It does not cancel concurrent
-  publisher runs. Push, scheduled, and trusted manual runs publish branch
-  results directly.
+  publishes only if the head still matches. Metadata artifacts are retained
+  for seven days and named per workflow-run attempt so delayed publishers and
+  reruns can retrieve the correct metadata. The publisher deliberately does
+  not cancel concurrent runs.
+  This split keeps write access to Code Scanning out of the PR-triggered
+  workflow and avoids trusting SARIF produced by an untrusted workflow. Its
+  costs are a second CodeQL run for each PR, additional runner time and result
+  latency, plus maintenance of a second workflow and its metadata handoff.
+  Publication can still fail if the artifact expires, the source repository
+  is unavailable, the trusted default-branch listener is not installed, or
+  checkout, API verification, CodeQL, or upload fails. Scans are skipped when
+  the PR head changes before the final check. A small time-of-check/time-of-use
+  window remains between that check and the SARIF upload: the upload must use
+  GitHub's mutable pull-request ref to associate results with the PR, so a
+  concurrent head update in that interval cannot be made atomic by this
+  workflow. Push, scheduled, and trusted manual runs publish branch results
+  directly.
 - `.github/renovate.json` configures Renovate for Docker and GitHub Actions.
   `.github/dependabot.yml` also configures Dependabot for those ecosystems.
   Their current scopes overlap. Avoid duplicate update PRs by assigning each
