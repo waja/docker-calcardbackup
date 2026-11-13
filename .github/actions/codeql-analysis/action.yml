@@ -7,7 +7,7 @@ inputs:
     required: false
     default: "."
   upload:
-    description: Whether CodeQL should upload results automatically (always or never).
+    description: Whether the action should upload SARIF results and its database (always or never).
     required: false
     default: always
   output:
