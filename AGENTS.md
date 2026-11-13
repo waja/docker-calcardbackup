@@ -268,10 +268,12 @@ user's request or these working agreements.
 - Keep CodeQL pull-request analysis read-only. The separate
   `codeql-pr-upload.yml` workflow must run from the default branch, verify the
   current PR head against the completed source run, and rerun the scanner from
-  trusted workflow code before publishing. PR source may be checked out for
-  static analysis, but must remain data only: never execute PR-controlled
-  scripts, actions, build steps, or configuration. Keep checkout credentials
-  unpersisted. Do not consume SARIF or other artifacts produced by an
+  trusted workflow code before publishing. Use
+  `.github/codeql/codeql-config.yml` from the trusted checkout for both PR
+  scans; never let a PR-controlled configuration select queries or exclusions.
+  PR source may be checked out for static analysis, but must remain data only:
+  never execute PR-controlled scripts, actions, build steps, or configuration.
+  Keep checkout credentials unpersisted. Do not consume SARIF or other artifacts produced by an
   untrusted PR workflow. Keep `security-events: write` scoped to trusted CodeQL
   jobs and do not grant it to ordinary PR validation workflows.
 - Preserve the separation between lint/security checks, image build,
