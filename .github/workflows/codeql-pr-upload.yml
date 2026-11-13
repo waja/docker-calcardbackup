@@ -35,7 +35,7 @@ jobs:
       - name: Download trusted pull request metadata
         uses: actions/download-artifact@v4
         with:
-          name: codeql-pr-metadata
+          name: codeql-pr-metadata-${{ github.event.workflow_run.run_attempt }}
           path: pr-metadata
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
