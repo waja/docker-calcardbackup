@@ -199,8 +199,13 @@ user's request or these working agreements.
   window remains between that check and the SARIF upload: the upload must use
   GitHub's mutable pull-request ref to associate results with the PR, so a
   concurrent head update in that interval cannot be made atomic by this
-  workflow. Push, scheduled, and trusted manual runs publish branch results
-  directly.
+  workflow. Publisher runs for the same PR are also not serialized. If two
+  runs overlap, an older scan can finish after a newer one and publish its
+  result last. The final PR-state check reduces stale publication but cannot
+  eliminate either race. Per-PR serialization would add workflow coordination
+  and still would not make the final check and upload atomic; for this project,
+  we accept and document that residual risk rather than add that complexity.
+  Push and scheduled runs publish branch results directly.
 - `.github/renovate.json` configures Renovate for Docker and GitHub Actions.
   `.github/dependabot.yml` also configures Dependabot for those ecosystems.
   Their current scopes overlap. Avoid duplicate update PRs by assigning each
