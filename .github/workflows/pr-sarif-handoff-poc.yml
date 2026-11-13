@@ -223,7 +223,7 @@ jobs:
 
           sarif="$(base64 -w0 combined.sarif)"
           payload="$(jq -n --arg commit "$HEAD_SHA" --arg ref "refs/pull/$PR_NUMBER/head" --arg data "$sarif" '
-            {commit_sha:$commit, ref:$ref, sarif:$data, tool_name:"Calcardbackup image scanners"}
+            {commit_sha:$commit, ref:$ref, sarif:$data}
           ')"
           response="$(gh api --method POST "repos/$REPOSITORY/code-scanning/sarifs" --input <(printf '%s' "$payload"))"
           upload_id="$(jq -r '.id // empty' <<<"$response")"
