@@ -55,7 +55,9 @@ jobs:
 
   analyze-pr:
     name: Analyze GitHub Actions (read-only)
-    if: github.event_name == 'pull_request_target'
+    if: >-
+      github.event_name == 'pull_request_target' &&
+      github.event.pull_request.head.repo != null
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -116,6 +118,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: codeql-pr-metadata
+          name: codeql-pr-metadata-${{ github.run_attempt }}
           path: pr-metadata/pr.json
-          retention-days: 1
+          retention-days: 7
