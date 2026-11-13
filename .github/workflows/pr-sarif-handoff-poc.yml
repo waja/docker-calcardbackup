@@ -145,7 +145,7 @@ jobs:
             ' "$file" >/dev/null
           done
 
-          jq -s '{version:"2.1.0", $schema:"https://json.schemastore.org/sarif-2.1.0.json", runs: map(.runs[]) }' \
+          jq -s '{version:"2.1.0", "$schema":"https://json.schemastore.org/sarif-2.1.0.json", runs: map(.runs[]) }' \
             dockle.sarif trivy.sarif anchore.sarif > combined.sarif
           jq -e '.version == "2.1.0" and (.runs | length >= 3)' combined.sarif >/dev/null
           encoded="$(base64 -w0 combined.sarif)"
