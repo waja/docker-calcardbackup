@@ -13,6 +13,9 @@ inputs:
   output:
     description: Directory where the SARIF result is written.
     required: true
+  config-file:
+    description: Trusted CodeQL configuration file.
+    required: true
 
 outputs:
   codeql-path:
@@ -28,7 +31,7 @@ runs:
       with:
         languages: actions
         build-mode: none
-        queries: security-extended
+        config-file: ${{ inputs.config-file }}
         source-root: ${{ inputs.source-root }}
 
     - name: Perform CodeQL analysis
@@ -37,3 +40,4 @@ runs:
         category: "/language:actions"
         output: ${{ inputs.output }}
         upload: ${{ inputs.upload }}
+        upload-database: ${{ inputs.upload != 'never' }}
