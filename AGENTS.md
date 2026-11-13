@@ -177,8 +177,8 @@ user's request or these working agreements.
   `.github/workflows/codeql.yml` invokes it for trusted branch scans and
   read-only `pull_request_target` scans. The PR job runs from the trusted base
   workflow, loads the helper from the trusted base commit, and checks out PR
-  source separately as static-analysis input only. Manual dispatch is
-  privileged only on `development` and `master`.
+  source separately as static-analysis input only. The workflow has no manual
+  dispatch trigger, so privileged scans run only on pushes and the schedule.
   `.github/workflows/codeql-pr-upload.yml` runs from the trusted default
   branch. The trusted PR scan passes only its PR number, source repository,
   and exact head SHA through a small metadata artifact (never SARIF). The
@@ -258,13 +258,14 @@ user's request or these working agreements.
   only for non-PR events and are short-lived; separate uploader jobs grant
   `security-events: write` only on those trusted events. Never expose that
   permission to a workflow definition or code controlled by a pull request.
-  Pull-request SARIF publication is intentionally deferred to issue #256,
-  which must provide a trusted handoff without public report artifacts.
-  Do not switch to `pull_request_target` or expose additional credentials to
-  PR-controlled code. These restrictions apply to the container scanners in
-  `docker.image.yml`; the separate CodeQL pull-request workflow uses
-  `pull_request_target` with trusted workflow code and read-only scan
-  permissions.
+  Pull-request SARIF publication remains deferred to issue #256 for the
+  container scanners in `docker.image.yml`; that issue must provide a trusted
+  handoff without public report artifacts. Do not switch those container
+  scans to `pull_request_target` or expose additional credentials to
+  PR-controlled code. These restrictions apply only to the container scanners;
+  the separate CodeQL pull-request workflow uses `pull_request_target` with
+  trusted workflow code and read-only scan permissions, then publishes through
+  its separately validated trusted publisher.
 - Keep CodeQL pull-request analysis read-only. The separate
   `codeql-pr-upload.yml` workflow must run from the default branch, verify the
   current PR head against the completed source run, and rerun the scanner from
