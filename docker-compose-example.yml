@@ -38,6 +38,8 @@ services:
       - NC_HOST=nextcloud
       - NC_PORT=8888
       - DB_HOST=nextcloud-db
+      - BACKUP_LOG=/backup/backup.log
+      - CRONTAB_FILE=/backup/crontab.conf
     depends_on:
       - nextcloud-db
       - nextcloud
