@@ -20,7 +20,7 @@ EOF
 	calcardbackup_enable_mysql_optionfiles
 fi
 BACKUP_CMD="/opt/calcardbackup/calcardbackup ${NC_DIR:=/nextcloud/} --output ${BACKUP_DIR:=/backup/} ${CALCARD_OPTS:=-i}"
-BACKUP_LOG="${BACKUP_LOG:-/backup.log}"
+BACKUP_LOG="${BACKUP_LOG:-$BACKUP_DIR/backup.log}"
 touch "${BACKUP_LOG}"
 tail -F "${BACKUP_LOG}" &
 
@@ -41,8 +41,7 @@ if [ -n "${INIT_BACKUP}" ]; then
 	${BACKUP_CMD} >>"${BACKUP_LOG}" 2>&1
 fi
 
-CRONTAB_FILE="${CRONTAB_FILE:-/crontab.conf}"
+CRONTAB_FILE="${CRONTAB_FILE:-/opt/calcardbackup/config/crontab.conf}"
 echo "${CRON_TIME:=5 4 * * *} ${BACKUP_CMD} >> ${BACKUP_LOG} 2>&1" >"$CRONTAB_FILE"
-crontab "$CRONTAB_FILE"
 echo "=> Running cron task manager"
-exec crond -f
+exec supercronic "$CRONTAB_FILE"
