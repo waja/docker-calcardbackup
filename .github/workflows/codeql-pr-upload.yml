@@ -13,10 +13,11 @@ permissions:
   pull-requests: read
 
 # Prevent overlapping publishers for the same source repository and branch.
-# Do not cancel an active publication; let the newer run wait for it.
+# Keep pending runs queued; never cancel an active publication.
 concurrency:
   group: codeql-pr-publish-${{ github.event.workflow_run.head_repository.id || github.repository_id }}-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: false
+  queue: max
 
 jobs:
   analyze-and-upload:
