@@ -200,12 +200,13 @@ user's request or these working agreements.
   GitHub's mutable pull-request ref to associate results with the PR, so a
   concurrent head update in that interval cannot be made atomic by this
   workflow. Publisher runs are serialized by source repository ID and branch,
-  preventing overlapping uploads for the same source branch. This can also
-  serialize distinct PRs that reuse the same source branch name. GitHub may
-  replace an already-pending run in a concurrency group with a newer one;
-  the active run is never canceled. Serialization does not make the final
-  PR-state check and upload atomic, so the small TOCTOU window remains an
-  accepted residual risk.
+  preventing overlapping uploads for the same source branch. The concurrency
+  queue is set to `max`, so pending publisher runs are retained (up to GitHub's
+  documented limit) instead of replacing one another; active runs are never
+  canceled. This can also serialize distinct PRs that reuse the same source
+  branch name. The live-head check makes queued runs for superseded revisions
+  skip publication. Serialization does not make the final PR-state check and
+  upload atomic, so the small TOCTOU window remains an accepted residual risk.
   Push and scheduled runs publish branch results directly.
 - `.github/renovate.json` configures Renovate for Docker and GitHub Actions.
   `.github/dependabot.yml` also configures Dependabot for those ecosystems.
