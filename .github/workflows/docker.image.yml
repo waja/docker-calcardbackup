@@ -26,7 +26,6 @@ jobs:
     name: super-linter
     permissions:
       contents: read
-      statuses: write
     strategy:
       fail-fast: false
     runs-on: ubuntu-latest
@@ -42,12 +41,15 @@ jobs:
         uses: super-linter/super-linter@v9.0.0
         env:
           DEFAULT_BRANCH: master
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VALIDATE_GITHUB_ACTIONS_ZIZMOR: false
           VALIDATE_TRIVY: false
           VALIDATE_BIOME_FORMAT: false
+          MULTI_STATUS: false
+          ENABLE_GITHUB_PULL_REQUEST_SUMMARY_COMMENT: false
   shiftleft:
     name: shiftleft
+    outputs:
+      sarif_artifact: shiftleft-sarif-${{ github.run_attempt }}
     permissions:
       contents: read
       packages: read
@@ -74,10 +76,12 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
         with:
-          name: shiftleft-sarif
+          name: shiftleft-sarif-${{ github.run_attempt }}
           path: reports
           retention-days: 1
   test-build:
+    outputs:
+      image_artifact: ${{ steps.artifact.outputs.name }}
     needs:
       - super-linter
     strategy:
@@ -88,6 +92,9 @@ jobs:
         uses: actions/checkout@v7
         with:
           persist-credentials: false
+      - name: Set artifact name
+        id: artifact
+        run: echo "name=${IMAGE_NAME}-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
       - name: Test startup option handling
         run: bash tests/test_calcard_opts.sh
       - name: Set up QEMU
@@ -121,7 +128,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ env.IMAGE_NAME }}-${{ github.run_number }}
+          name: ${{ steps.artifact.outputs.name }}
           path: /tmp/${{ env.IMAGE_NAME }}-${{ github.run_number }}.tar
   test:
     name: Run test
@@ -139,7 +146,7 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v8
         with:
-          name: ${{ env.IMAGE_NAME }}-${{ github.run_number }}
+          name: ${{ needs.test-build.outputs.image_artifact }}
           path: /tmp
       - name: Load image and push to local registry
         run: |
@@ -164,6 +171,8 @@ jobs:
           fi
   dockle:
     name: Run Dockle tests
+    outputs:
+      sarif_artifact: dockle-sarif-${{ github.run_attempt }}
     needs:
       - test-build
     strategy:
@@ -178,7 +187,7 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v8
         with:
-          name: ${{ env.IMAGE_NAME }}-${{ github.run_number }}
+          name: ${{ needs.test-build.outputs.image_artifact }}
           path: /tmp
       - name: Load image and push to local registry
         run: |
@@ -201,15 +210,17 @@ jobs:
         if: always() && github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
         with:
-          name: dockle-sarif
-          path: dockle.sarif
+          name: dockle-sarif-${{ github.run_attempt }}
           retention-days: 1
+          path: dockle.sarif
           if-no-files-found: ignore
       - name: Fail job when Dockle reports findings
         if: always() && steps.dockle.outcome == 'failure'
         run: exit 1
   trivy:
     name: Run Trivy tests
+    outputs:
+      sarif_artifact: trivy-sarif-${{ github.run_attempt }}
     needs:
       - test-build
     strategy:
@@ -224,7 +235,7 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v8
         with:
-          name: ${{ env.IMAGE_NAME }}-${{ github.run_number }}
+          name: ${{ needs.test-build.outputs.image_artifact }}
           path: /tmp
       - name: Load image and push to local registry
         run: |
@@ -243,11 +254,13 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
         with:
-          name: trivy-sarif
-          path: trivy-results.sarif
+          name: trivy-sarif-${{ github.run_attempt }}
           retention-days: 1
+          path: trivy-results.sarif
   anchore:
     name: Run Anchore tests
+    outputs:
+      sarif_artifact: anchore-sarif-${{ github.run_attempt }}
     needs:
       - test-build
     strategy:
@@ -262,7 +275,7 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v8
         with:
-          name: ${{ env.IMAGE_NAME }}-${{ github.run_number }}
+          name: ${{ needs.test-build.outputs.image_artifact }}
           path: /tmp
       - name: Load image and push to local registry
         run: |
@@ -284,13 +297,50 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v7
         with:
-          name: anchore-sarif
-          path: sarif-reports
+          name: anchore-sarif-${{ github.run_attempt }}
           retention-days: 1
-  upload-shiftleft-sarif:
-    name: Upload ShiftLeft SARIF
-    needs: shiftleft
-    if: always() && github.event_name != 'pull_request' && needs.shiftleft.result == 'success'
+          path: sarif-reports
+  upload-sarif:
+    name: Upload SARIF reports
+    needs:
+      - shiftleft
+      - dockle
+      - trivy
+      - anchore
+    if: >-
+      always() &&
+      (github.run_attempt == 1 || github.triggering_actor == 'waja') &&
+      (
+        (
+          github.event_name == 'push' &&
+          (
+            github.ref == 'refs/heads/master' ||
+            github.ref == 'refs/heads/development' ||
+            (
+              github.ref_type == 'tag' &&
+              github.actor == 'waja' &&
+              github.triggering_actor == 'waja'
+            )
+          )
+        ) ||
+        github.event_name == 'schedule' ||
+        (
+          github.event_name == 'workflow_dispatch' &&
+          (
+            github.ref == 'refs/heads/master' ||
+            github.ref == 'refs/heads/development'
+          ) &&
+          github.actor == 'waja' &&
+          github.triggering_actor == 'waja'
+        )
+      ) &&
+      (
+        needs.shiftleft.result == 'success' ||
+        needs.dockle.result == 'success' ||
+        needs.dockle.result == 'failure' ||
+        needs.trivy.result == 'success' ||
+        needs.anchore.result == 'success'
+      )
     permissions:
       contents: read
       security-events: write
@@ -300,82 +350,81 @@ jobs:
         uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@v8
-        with:
-          name: shiftleft-sarif
-          path: sarif-reports/shiftleft
-      - uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: sarif-reports/shiftleft
-  upload-dockle-sarif:
-    name: Upload Dockle SARIF
-    needs: dockle
-    if: always() && github.event_name != 'pull_request' && (needs.dockle.result == 'success' || needs.dockle.result == 'failure')
-    permissions:
-      contents: read
-      security-events: write
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: actions/download-artifact@v8
+      - name: Download ShiftLeft report
+        if: always() && needs.shiftleft.outputs.sarif_artifact != ''
+        uses: actions/download-artifact@v8
         continue-on-error: true
         with:
-          name: dockle-sarif
+          name: ${{ needs.shiftleft.outputs.sarif_artifact }}
+          path: sarif-reports/shiftleft
+      - name: Download Dockle report
+        if: always() && needs.dockle.outputs.sarif_artifact != ''
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: ${{ needs.dockle.outputs.sarif_artifact }}
           path: sarif-reports/dockle
-      - uses: github/codeql-action/upload-sarif@v4
-        if: success() && hashFiles('sarif-reports/dockle/dockle.sarif') != ''
+      - name: Download Trivy report
+        if: always() && needs.trivy.outputs.sarif_artifact != ''
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: ${{ needs.trivy.outputs.sarif_artifact }}
+          path: sarif-reports/trivy
+      - name: Download Anchore report
+        if: always() && needs.anchore.outputs.sarif_artifact != ''
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: ${{ needs.anchore.outputs.sarif_artifact }}
+          path: sarif-reports/anchore
+      - name: Upload ShiftLeft SARIF
+        if: always() && hashFiles('sarif-reports/shiftleft/**/*.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-reports/shiftleft
+      - name: Upload Dockle SARIF
+        if: always() && hashFiles('sarif-reports/dockle/dockle.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: sarif-reports/dockle/dockle.sarif
-  upload-trivy-sarif:
-    name: Upload Trivy SARIF
-    needs: trivy
-    if: always() && github.event_name != 'pull_request' && needs.trivy.result == 'success'
-    permissions:
-      contents: read
-      security-events: write
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: actions/download-artifact@v8
-        with:
-          name: trivy-sarif
-          path: sarif-reports/trivy
-      - uses: github/codeql-action/upload-sarif@v4
+      - name: Upload Trivy SARIF
+        if: always() && hashFiles('sarif-reports/trivy/trivy-results.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: sarif-reports/trivy/trivy-results.sarif
-  upload-anchore-sarif:
-    name: Upload Anchore SARIF
-    needs: anchore
-    if: always() && github.event_name != 'pull_request' && needs.anchore.result == 'success'
-    permissions:
-      contents: read
-      security-events: write
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: actions/download-artifact@v8
-        with:
-          name: anchore-sarif
-          path: sarif-reports/anchore
-      - uses: github/codeql-action/upload-sarif@v4
+      - name: Upload Anchore SARIF
+        if: always() && hashFiles('sarif-reports/anchore/**/*.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: sarif-reports/anchore
   release-docker:
     name: Release Docker images
-    if: github.event_name != 'pull_request'
+    # Keep publishing credentials away from PR code and untrusted manual refs.
+    # Reruns are authorized against the user who triggered the rerun as well.
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.run_attempt == 1 || github.triggering_actor == 'waja') &&
+      (
+        github.event_name != 'push' ||
+        github.ref_type != 'tag' ||
+        github.actor == 'waja'
+      ) &&
+      (
+        github.event_name != 'workflow_dispatch' ||
+        (
+          github.actor == 'waja' &&
+          (
+            github.ref == 'refs/heads/development' ||
+            github.ref == 'refs/heads/master'
+          )
+        )
+      )
     permissions:
       contents: read
       packages: write
     needs:
+      - test-build
       - test
       - shiftleft
       - dockle
@@ -389,6 +438,18 @@ jobs:
         uses: actions/checkout@v7
         with:
           persist-credentials: false
+
+      - name: Check branch freshness
+        id: freshness
+        if: github.ref_type == 'branch'
+        run: |
+          git fetch --no-tags origin "$GITHUB_REF"
+          if [ "$(git rev-parse FETCH_HEAD)" = "$GITHUB_SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "current=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping stale branch build $GITHUB_SHA; current tip is $(git rev-parse FETCH_HEAD)"
+          fi
 
       - name: Prepare
         id: prep
@@ -452,7 +513,7 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v8
         with:
-          name: ${{ env.IMAGE_NAME }}-${{ github.run_number }}
+          name: ${{ needs.test-build.outputs.image_artifact }}
           path: /tmp
 
       - name: Load image from test job
@@ -477,9 +538,11 @@ jobs:
             ${{ runner.os }}-buildx-
 
       - name: Login to ghcr
+        if: >-
+          (github.ref_type != 'branch' || steps.freshness.outputs.current == 'true') &&
+          env.GITHUB_TOKEN != ''
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        if: ${{ github.event_name != 'pull_request' && env.GITHUB_TOKEN != '' }}
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -490,7 +553,10 @@ jobs:
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-        if: ${{ github.event_name != 'pull_request' && env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != '' }}
+        if: >-
+          (github.ref_type != 'branch' || steps.freshness.outputs.current == 'true') &&
+          env.DOCKERHUB_USERNAME != '' &&
+          env.DOCKERHUB_TOKEN != ''
         uses: docker/login-action@v4
         with:
           username: ${{ env.DOCKERHUB_USERNAME }}
@@ -500,7 +566,10 @@ jobs:
         env:
           QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
           QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
-        if: ${{ github.event_name != 'pull_request' && env.QUAY_USERNAME != '' && env.QUAY_TOKEN != '' }}
+        if: >-
+          (github.ref_type != 'branch' || steps.freshness.outputs.current == 'true') &&
+          env.QUAY_USERNAME != '' &&
+          env.QUAY_TOKEN != ''
         uses: docker/login-action@v4
         with:
           registry: quay.io
@@ -524,6 +593,7 @@ jobs:
 
       - name: Build and push
         id: docker_build
+        if: github.ref_type != 'branch' || steps.freshness.outputs.current == 'true'
         uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
