@@ -41,7 +41,7 @@ jobs:
       # workflow. It contains PR identity/revision metadata, never SARIF.
       - name: Download trusted pull request metadata
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: codeql-pr-metadata-${{ github.event.workflow_run.run_attempt }}
           path: pr-metadata

@@ -110,7 +110,7 @@ jobs:
 
       - name: Upload trusted pull request metadata
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: codeql-pr-metadata-${{ github.run_attempt }}
           path: pr-metadata/pr.json
