@@ -13,6 +13,7 @@ on:
       - master
     tags:
       - "*.*.*-*"
+  delete:
   # Run tests for any PRs
   pull_request:
   schedule:
@@ -28,6 +29,9 @@ jobs:
       contents: read
     strategy:
       fail-fast: false
+    concurrency:
+      group: ${{ github.ref_type == 'branch' && format('docker-branch-{0}', github.ref) || format('docker-release-{0}', github.ref) }}
+      cancel-in-progress: ${{ github.ref_type == 'branch' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -400,10 +404,15 @@ jobs:
           sarif_file: sarif-reports/anchore
   release-docker:
     name: Release Docker images
+    outputs:
+      image: ${{ steps.prep.outputs.image }}
+      release_tag_current: ${{ steps.publish_tag_freshness.outputs.current }}
     # Keep publishing credentials away from PR code and untrusted manual refs.
     # Reruns are authorized against the user who triggered the rerun as well.
     if: >-
       github.event_name != 'pull_request' &&
+      github.event_name != 'delete' &&
+      github.event.deleted != true &&
       (github.run_attempt == 1 || github.triggering_actor == 'waja') &&
       (
         github.event_name != 'push' ||
@@ -432,12 +441,28 @@ jobs:
       - anchore
     strategy:
       fail-fast: false
+    concurrency:
+      group: ${{ github.ref_type == 'branch' && format('docker-publish-branch-{0}', github.ref) || 'docker-release-tags' }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
           persist-credentials: false
+
+      - name: Check release tag freshness
+        id: tag_freshness
+        if: github.ref_type == 'tag'
+        run: |
+          git fetch --force --prune --prune-tags origin '+refs/tags/*:refs/tags/*'
+          tag="${GITHUB_REF#refs/tags/}"
+          if [ "$(git rev-parse "refs/tags/$tag^{commit}")" = "$GITHUB_SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "current=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping stale release run for $tag at $GITHUB_SHA; current tag target is $(git rev-parse "refs/tags/$tag^{commit}")"
+          fi
 
       - name: Check branch freshness
         id: freshness
@@ -459,10 +484,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
           QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
+          EVENT_DELETED: ${{ github.event.deleted == true }}
         run: |
           USER="${GITHUB_REPOSITORY_OWNER}"
-          IMAGE_NAME="$(echo '${{ github.repository }}' | awk -F '/' '{print $2}' | sed  s/docker-//)"
+          IMAGE_NAME="${GITHUB_REPOSITORY#*/}"
+          IMAGE_NAME="${IMAGE_NAME#docker-}"
           DOCKER_IMAGE="${USER}/${IMAGE_NAME}"
+          echo "image=${DOCKER_IMAGE}" >> "$GITHUB_OUTPUT"
           VERSION=edge
           # running on a tag
           if [[ $GITHUB_REF == refs/tags/* ]]; then
@@ -477,36 +505,16 @@ jobs:
           if [ "${{ github.event_name }}" = "schedule" ]; then
             VERSION=nightly
           fi
-          # running on master branch
-          if [ "$VERSION" = "master" ]; then
-            VERSION=latest
-          fi
-          TAGS="${DOCKER_IMAGE}:${VERSION}"
-          if [[ "$VERSION" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\-[0-9]{1,3}$ ]]; then
-            REALEASE_TAG=true
-          fi
-          TAGS_INT="$TAGS"
+          # Keep branch and exact release tags separate from mutable aliases.
           TAGS=""
           if [ "$DOCKERHUB_USERNAME" != '' ] && [ "$DOCKERHUB_TOKEN" != '' ]; then
-            if [ "$REALEASE_TAG" = "true" ]; then
-              TAGS="$TAGS_INT,${DOCKER_IMAGE}:latest"
-            else
-              TAGS="$TAGS_INT"
-            fi
+            TAGS="${DOCKER_IMAGE}:${VERSION}"
           fi
           if [ "$GITHUB_TOKEN" != '' ]; then
-            if [ "$REALEASE_TAG" = "true" ]; then
-              TAGS="$TAGS,ghcr.io/$TAGS_INT,ghcr.io/${DOCKER_IMAGE}:latest"
-            else
-              TAGS="$TAGS,ghcr.io/$TAGS_INT"
-            fi
+            TAGS="${TAGS:+$TAGS,}ghcr.io/${DOCKER_IMAGE}:${VERSION}"
           fi
           if [ "$QUAY_USERNAME" != '' ] && [ "$QUAY_TOKEN" != '' ]; then
-            if [ "$REALEASE_TAG" = "true" ]; then
-              TAGS="$TAGS,quay.io/$TAGS_INT,quay.io/${DOCKER_IMAGE}:latest"
-            else
-              TAGS="$TAGS,quay.io/$TAGS_INT"
-            fi
+            TAGS="${TAGS:+$TAGS,}quay.io/${DOCKER_IMAGE}:${VERSION}"
           fi
           echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
 
@@ -591,9 +599,37 @@ jobs:
             VCS_URL="$(git config --get remote.origin.url)"
             VCS_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 
+      - name: Recheck branch freshness before publishing
+        id: publish_freshness
+        if: github.ref_type == 'branch'
+        run: |
+          git fetch --no-tags origin "$GITHUB_REF"
+          if [ "$(git rev-parse FETCH_HEAD)" = "$GITHUB_SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "current=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping stale branch publish $GITHUB_SHA; current tip is $(git rev-parse FETCH_HEAD)"
+          fi
+
+      - name: Recheck release tag freshness before publishing
+        id: publish_tag_freshness
+        if: github.ref_type == 'tag'
+        run: |
+          git fetch --force --prune --prune-tags origin '+refs/tags/*:refs/tags/*'
+          tag="${GITHUB_REF#refs/tags/}"
+          current_target="$(git rev-parse --verify "refs/tags/$tag^{commit}" 2>/dev/null || true)"
+          if [ "$current_target" = "$GITHUB_SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "current=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping stale release publish for $tag at $GITHUB_SHA; current tag target is ${current_target:-missing}"
+          fi
+
       - name: Build and push
         id: docker_build
-        if: github.ref_type != 'branch' || steps.freshness.outputs.current == 'true'
+        if: >-
+          (github.ref_type != 'branch' || steps.publish_freshness.outputs.current == 'true') &&
+          (github.ref_type != 'tag' || steps.publish_tag_freshness.outputs.current == 'true')
         uses: docker/build-push-action@v7
         with:
           builder: ${{ steps.buildx.outputs.name }}
@@ -614,3 +650,226 @@ jobs:
 
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
+
+  publish-release-aliases:
+    name: Publish release aliases
+    if: >-
+      always() &&
+      (github.run_attempt == 1 || github.triggering_actor == 'waja') &&
+      (
+        (
+          github.event_name == 'push' &&
+          github.ref_type == 'tag' &&
+          (
+            github.event.deleted == true ||
+            (
+              github.actor == 'waja' &&
+              needs.release-docker.result == 'success' &&
+              needs.release-docker.outputs.release_tag_current == 'true'
+            )
+          )
+        ) ||
+        (
+          github.event_name == 'delete' &&
+          github.event.ref_type == 'tag'
+        )
+      )
+    needs:
+      - release-docker
+    concurrency:
+      group: docker-release-tags
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_IMAGE: ${{ needs.release-docker.outputs.image }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ (github.event_name == 'delete' || github.event.deleted == true) && 'development' || github.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Resolve image name for deleted release
+        if: github.event_name == 'delete' || github.event.deleted == true
+        run: |
+          IMAGE_NAME="${GITHUB_REPOSITORY#*/}"
+          IMAGE_NAME="${IMAGE_NAME#docker-}"
+          echo "DOCKER_IMAGE=${GITHUB_REPOSITORY_OWNER}/${IMAGE_NAME}" >> "$GITHUB_ENV"
+
+      - name: Recheck release tag before alias reconciliation
+        id: alias_tag_freshness
+        if: github.event_name == 'push' && github.ref_type == 'tag' && github.event.deleted != true
+        run: |
+          git fetch --force --prune --prune-tags origin '+refs/tags/*:refs/tags/*'
+          tag="${GITHUB_REF#refs/tags/}"
+          current_target="$(git rev-parse --verify "refs/tags/$tag^{commit}" 2>/dev/null || true)"
+          if [ "$current_target" = "$GITHUB_SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "current=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping alias reconciliation for stale release tag $tag at $GITHUB_SHA; current tag target is ${current_target:-missing}"
+          fi
+
+      - name: Reconcile release aliases
+        if: >-
+          github.event_name == 'delete' ||
+          github.event.deleted == true ||
+          steps.alias_tag_freshness.outputs.current == 'true'
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
+          QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
+          EVENT_DELETED: ${{ github.event.deleted == true }}
+        run: |
+          if [ -n "$GITHUB_TOKEN" ]; then
+            printf '%s' "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          fi
+          if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
+            printf '%s' "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+          fi
+          if [ -n "$QUAY_USERNAME" ] && [ -n "$QUAY_TOKEN" ]; then
+            printf '%s' "$QUAY_TOKEN" | docker login quay.io -u "$QUAY_USERNAME" --password-stdin
+          fi
+
+          git fetch --force --prune --prune-tags origin '+refs/tags/*:refs/tags/*'
+          RELEASES="$(git tag --list | grep -E '^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$' | sort -V || true)"
+          if [ -z "$RELEASES" ]; then
+            if [ "$GITHUB_EVENT_NAME" = "delete" ] || [ "$EVENT_DELETED" = "true" ]; then
+              echo "::error::No release tags remain. Remove any orphaned release aliases manually; generic manifest deletion could also remove exact version tags."
+              exit 1
+            fi
+            exit 0
+          fi
+
+          registries=()
+          if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
+            registries+=(docker.io)
+          fi
+          if [ -n "$GITHUB_TOKEN" ]; then
+            registries+=(ghcr.io)
+          fi
+          if [ -n "$QUAY_USERNAME" ] && [ -n "$QUAY_TOKEN" ]; then
+            registries+=(quay.io)
+          fi
+          (( "${#registries[@]}" )) || exit 0
+
+          inspect_image() {
+            local image="$1"
+            local output
+            if output=$(docker buildx imagetools inspect "$image" 2>&1); then
+              return 0
+            fi
+            if printf '%s\n' "$output" | grep -Eiq 'manifest[_ -]unknown|no such manifest|(^|[^[:alnum:]_/-])manifest[[:space:]]+(not found|does not exist)'; then
+              return 1
+            fi
+            echo "::error::Unable to inspect $image: $output"
+            return 2
+          }
+
+          # Determine the highest releases from the union of published images.
+          # A missing tag is skipped; any other inspection error aborts before
+          # aliases are changed, avoiding accidental rollback on transient errors.
+          declare -A image_available=()
+          available_releases=()
+          inspection_failed=false
+          for version in $RELEASES; do
+            version_available=false
+            for registry in "${registries[@]}"; do
+              source_image="$registry/$DOCKER_IMAGE:$version"
+              if inspect_image "$source_image"; then
+                image_available["$registry:$version"]=true
+                version_available=true
+              else
+                inspect_status=$?
+                if [ "$inspect_status" -eq 2 ]; then
+                  inspection_failed=true
+                fi
+              fi
+            done
+            [ "$version_available" = true ] && available_releases+=("$version")
+          done
+          if [ "$inspection_failed" = true ]; then
+            echo "::error::Release image inspection failed; no aliases were changed"
+            exit 1
+          fi
+          if (( "${#available_releases[@]}" == 0 )); then
+            echo "::error::No published release images are available; refusing to silently skip alias reconciliation"
+            exit 1
+          fi
+
+          registry_releases="$(printf '%s\n' "${available_releases[@]}")"
+          highest() {
+            printf '%s\n' "$registry_releases" | grep -E "$1" | tail -n 1 || true
+          }
+          last_index=$((${#available_releases[@]} - 1))
+          latest_version="${available_releases[$last_index]}"
+
+          # Build a complete alias plan before changing any registry. A configured
+          # registry missing a selected source image is an inconsistent release
+          # publication; fail visibly instead of leaving older aliases in place.
+          declare -a alias_plan=()
+          preflight_failed=false
+          for version in "${available_releases[@]}"; do
+            [[ "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)-[0-9]+$ ]] || continue
+            major="${BASH_REMATCH[1]}"
+            minor="${BASH_REMATCH[2]}"
+            patch="${BASH_REMATCH[3]}"
+            aliases=()
+
+            [ "$version" = "$(highest "^$major\.$minor\.$patch-")" ] && aliases+=("$major.$minor.$patch")
+            [ "$version" = "$(highest "^$major\.$minor\.")" ] && aliases+=("$major.$minor")
+            [ "$version" = "$(highest "^$major\.")" ] && aliases+=("$major")
+            [ "$version" = "$latest_version" ] && aliases+=(latest)
+            (( "${#aliases[@]}" )) || continue
+
+            for alias in "${aliases[@]}"; do
+              for registry in "${registries[@]}"; do
+                if [ "${image_available["$registry:$version"]:-false}" != true ]; then
+                  echo "::error::Cannot reconcile $alias: selected source $registry/$DOCKER_IMAGE:$version is missing"
+                  preflight_failed=true
+                else
+                  alias_plan+=("$registry|$alias|$version")
+                fi
+              done
+            done
+          done
+          if [ "$preflight_failed" = true ]; then
+            echo "::error::At least one configured registry is missing a selected release image; no aliases were changed. Restore the exact release tags and rerun."
+            exit 1
+          fi
+
+          publication_failed=false
+          for entry in "${alias_plan[@]}"; do
+            IFS='|' read -r registry alias version <<< "$entry"
+            source_image="$registry/$DOCKER_IMAGE:$version"
+            target_image="$registry/$DOCKER_IMAGE:$alias"
+            published=false
+            for attempt in 1 2 3; do
+              if docker buildx imagetools create --tag "$target_image" "$source_image"; then
+                published=true
+                break
+              fi
+              echo "::warning::Attempt $attempt/3 failed to publish $target_image from $source_image"
+              if [ "$attempt" -lt 3 ]; then
+                sleep $((attempt * 2))
+              fi
+            done
+            if [ "$published" != true ]; then
+              echo "::error::Failed to publish $target_image from $source_image after 3 attempts"
+              publication_failed=true
+            fi
+          done
+
+          if [ "$publication_failed" = true ]; then
+            echo "::error::One or more release aliases could not be published after retries; rerun this job to reconcile all aliases"
+            exit 1
+          fi
