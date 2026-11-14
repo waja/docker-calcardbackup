@@ -1,0 +1,207 @@
+name: CodeQL PR Results
+
+on:
+  workflow_run:
+    workflows:
+      - CodeQL
+    types:
+      - completed
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+
+# Prevent overlapping publishers for the same source repository and branch.
+# Keep pending runs queued; never cancel an active publication.
+concurrency:
+  group: codeql-pr-publish-${{ github.event.workflow_run.head_repository.id || github.repository_id }}-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  analyze-and-upload:
+    name: Publish trusted PR analysis
+    if: >-
+      github.event.workflow_run.event == 'pull_request_target' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      (
+        github.event.workflow_run.path == '.github/workflows/codeql.yml' ||
+        startsWith(github.event.workflow_run.path, '.github/workflows/codeql.yml@')
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+      security-events: write
+    steps:
+      # This small artifact is produced by the trusted pull_request_target
+      # workflow. It contains PR identity/revision metadata, never SARIF.
+      - name: Download trusted pull request metadata
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: codeql-pr-metadata-${{ github.event.workflow_run.run_attempt }}
+          path: pr-metadata
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Check trusted pull request metadata
+        id: metadata
+        if: always()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require("fs");
+            const runId = context.payload.workflow_run.id;
+            const { data } = await github.rest.actions.listJobsForWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: runId,
+              per_page: 100,
+            });
+            const sourceScan = data.jobs.find(
+              (job) => job.name === "Analyze GitHub Actions (read-only)",
+            );
+
+            if (!sourceScan) {
+              throw new Error("The source CodeQL run has no read-only PR scan job.");
+            }
+
+            if (fs.existsSync("pr-metadata/pr.json") && fs.statSync("pr-metadata/pr.json").size > 0) {
+              core.setOutput("present", "true");
+              return;
+            }
+
+            if (sourceScan.conclusion === "skipped") {
+              core.notice("The source PR scan was skipped; no metadata or publication is expected.");
+              core.setOutput("present", "false");
+              return;
+            }
+
+            throw new Error(
+              `The source PR scan concluded ${sourceScan.conclusion}, but its trusted metadata artifact is missing.`,
+            );
+
+      - name: Verify current pull request revision
+        if: steps.metadata.outputs.present == 'true'
+        id: pr
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require("fs");
+            const metadata = JSON.parse(fs.readFileSync("pr-metadata/pr.json", "utf8"));
+            const {
+              pullRequestNumber,
+              headSha,
+              headRepositoryId,
+              headRepository,
+            } = metadata;
+
+            if (
+              !Number.isInteger(pullRequestNumber) ||
+              typeof headSha !== "string" ||
+              !Number.isInteger(headRepositoryId) ||
+              typeof headRepository !== "string"
+            ) {
+              throw new Error("Trusted PR metadata is incomplete or malformed.");
+            }
+
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pullRequestNumber,
+            });
+
+            const valid =
+              pr.state === "open" &&
+              ["development", "master"].includes(pr.base.ref) &&
+              pr.head.sha === headSha &&
+              pr.head.repo?.id === headRepositoryId &&
+              pr.head.repo?.full_name === headRepository;
+
+            if (!valid) {
+              core.notice("Pull request is closed, targets an unsupported branch, or no longer matches the trusted scan revision; skipping publication.");
+              core.setOutput("scan", "false");
+              return;
+            }
+
+            core.setOutput("scan", "true");
+            core.setOutput("number", String(pr.number));
+            core.setOutput("repository", pr.head.repo.full_name);
+            core.setOutput("sha", pr.head.sha);
+            core.setOutput("head-repo-id", String(pr.head.repo.id));
+
+      # Load the composite action from the trusted default-branch revision,
+      # never from the pull request checkout.
+      - name: Checkout trusted workflow helpers
+        if: steps.pr.outputs.scan == 'true'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted
+          persist-credentials: false
+
+      # PR checkout is input data for CodeQL only; no PR code is executed.
+      - name: Checkout pull request source
+        if: steps.pr.outputs.scan == 'true'
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ steps.pr.outputs.repository }}
+          ref: ${{ steps.pr.outputs.sha }}
+          path: src
+          persist-credentials: false
+          allow-unsafe-pr-checkout: true
+
+      - name: Analyze with CodeQL
+        if: steps.pr.outputs.scan == 'true'
+        id: codeql_init
+        uses: ./trusted/.github/actions/codeql-analysis
+        with:
+          source-root: src
+          config-file: trusted/.github/codeql/codeql-config.yml
+          output: ${{ runner.temp }}/codeql-results
+          upload: never
+
+      # Re-fetch the PR immediately before upload to avoid publishing results
+      # after its head has advanced since the initial verification.
+      - name: Upload pull request results
+        if: steps.pr.outputs.scan == 'true'
+        env:
+          CODEQL: ${{ steps.codeql_init.outputs.codeql-path }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          PR_HEAD_SHA: ${{ steps.pr.outputs.sha }}
+          PR_HEAD_REPO_ID: ${{ steps.pr.outputs.head-repo-id }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mapfile -t sarif_files < <(find "${{ runner.temp }}/codeql-results" -maxdepth 1 -type f -name '*.sarif' -print)
+          if [ "${#sarif_files[@]}" -ne 1 ]; then
+            echo "Expected exactly one CodeQL SARIF file, found ${#sarif_files[@]}." >&2
+            exit 1
+          fi
+
+          current_pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          current_state="$(jq -r '.state' <<< "$current_pr")"
+          current_base="$(jq -r '.base.ref' <<< "$current_pr")"
+          current_sha="$(jq -r '.head.sha' <<< "$current_pr")"
+          current_repo_id="$(jq -r '.head.repo.id // empty' <<< "$current_pr")"
+
+          if [[ "$current_state" != "open" ||
+                ! "$current_base" =~ ^(development|master)$ ||
+                "$current_sha" != "$PR_HEAD_SHA" ||
+                "$current_repo_id" != "$PR_HEAD_REPO_ID" ]]; then
+            echo "Skipping PR #${PR_NUMBER}: its current head no longer matches the analyzed revision."
+            exit 0
+          fi
+
+          printf '%s' "$GITHUB_TOKEN" | "$CODEQL" github upload-results \
+            --github-auth-stdin \
+            --repository="$GITHUB_REPOSITORY" \
+            --ref="refs/pull/$PR_NUMBER/head" \
+            --commit="$PR_HEAD_SHA" \
+            --sarif="${sarif_files[0]}" \
+            --checkout-path="$GITHUB_WORKSPACE/src"

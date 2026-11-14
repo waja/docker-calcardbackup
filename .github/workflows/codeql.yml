@@ -1,0 +1,117 @@
+name: CodeQL
+
+on:
+  push:
+    branches:
+      - development
+      - master
+  pull_request_target:
+    branches:
+      - development
+      - master
+  schedule:
+    - cron: "23 10 * * 1"
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  analyze:
+    name: Analyze GitHub Actions
+    # Only push and scheduled events reach this privileged branch-scan job.
+    if: github.event_name != 'pull_request_target'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Analyze with CodeQL
+        uses: ./.github/actions/codeql-analysis
+        with:
+          config-file: .github/codeql/codeql-config.yml
+          output: ${{ runner.temp }}/codeql-results
+          upload: always
+
+  analyze-pr:
+    name: Analyze GitHub Actions (read-only)
+    if: >-
+      github.event_name == 'pull_request_target' &&
+      github.event.pull_request.head.repo != null
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    steps:
+      # The workflow and its helper action come from the trusted base revision.
+      - name: Checkout trusted workflow helpers
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: trusted
+          persist-credentials: false
+
+      # PR source is input data for CodeQL only; never execute PR-controlled
+      # scripts, actions, builds, or configuration.
+      - name: Checkout pull request
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: src
+          persist-credentials: false
+          allow-unsafe-pr-checkout: true
+
+      - name: Analyze with CodeQL
+        uses: ./trusted/.github/actions/codeql-analysis
+        with:
+          source-root: src
+          config-file: trusted/.github/codeql/codeql-config.yml
+          output: ${{ runner.temp }}/codeql-results
+          upload: never
+
+      # This trusted workflow records only the PR identity and exact source
+      # revision. The publisher validates them against the live PR before use.
+      - name: Record analyzed pull request revision
+        if: success()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require("fs");
+            const pr = context.payload.pull_request;
+            if (!pr?.head?.repo?.id || !pr.head.sha || !pr.number) {
+              throw new Error("Pull request head metadata is incomplete.");
+            }
+            fs.mkdirSync("pr-metadata", { recursive: true });
+            fs.writeFileSync(
+              "pr-metadata/pr.json",
+              JSON.stringify({
+                pullRequestNumber: pr.number,
+                headSha: pr.head.sha,
+                headRepositoryId: pr.head.repo.id,
+                headRepository: pr.head.repo.full_name
+              })
+            );
+
+      - name: Upload trusted pull request metadata
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-pr-metadata-${{ github.run_attempt }}
+          path: pr-metadata/pr.json
+          retention-days: 7

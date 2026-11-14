@@ -172,6 +172,42 @@ user's request or these working agreements.
   `docker-compose-complex-example.yml` are deployment examples.
 - `.github/workflows/docker.image.yml` contains lint/security checks,
   image build and test jobs, artifact handling, and image publishing.
+- `.github/actions/codeql-analysis/action.yml` contains the shared CodeQL
+  initialization and analysis steps for GitHub Actions workflow files.
+  `.github/workflows/codeql.yml` invokes it for trusted branch scans and
+  read-only `pull_request_target` scans. The PR job runs from the trusted base
+  workflow, loads the helper from the trusted base commit, and checks out PR
+  source separately as static-analysis input only. The workflow has no manual
+  dispatch trigger, so privileged scans run only on pushes and the schedule.
+  `.github/workflows/codeql-pr-upload.yml` runs from the trusted default
+  branch. The trusted PR scan passes only its PR number, source repository,
+  and exact head SHA through a small metadata artifact (never SARIF). The
+  publisher validates that metadata against the live PR, reruns CodeQL using
+  trusted configuration, rechecks the PR immediately before upload, and
+  publishes only if the head still matches. Metadata artifacts are retained
+  for seven days and named per workflow-run attempt so delayed publishers and
+  reruns can retrieve the correct metadata. The publisher deliberately does
+  not cancel concurrent runs.
+  This split keeps write access to Code Scanning out of the PR-triggered
+  workflow and avoids trusting SARIF produced by an untrusted workflow. Its
+  costs are a second CodeQL run for each PR, additional runner time and result
+  latency, plus maintenance of a second workflow and its metadata handoff.
+  Publication can still fail if the artifact expires, the source repository
+  is unavailable, the trusted default-branch listener is not installed, or
+  checkout, API verification, CodeQL, or upload fails. Scans are skipped when
+  the PR head changes before the final check. A small time-of-check/time-of-use
+  window remains between that check and the SARIF upload: the upload must use
+  GitHub's mutable pull-request ref to associate results with the PR, so a
+  concurrent head update in that interval cannot be made atomic by this
+  workflow. Publisher runs are serialized by source repository ID and branch,
+  preventing overlapping uploads for the same source branch. The concurrency
+  queue is set to `max`, so pending publisher runs are retained (up to GitHub's
+  documented limit) instead of replacing one another; active runs are never
+  canceled. This can also serialize distinct PRs that reuse the same source
+  branch name. The live-head check makes queued runs for superseded revisions
+  skip publication. Serialization does not make the final PR-state check and
+  upload atomic, so the small TOCTOU window remains an accepted residual risk.
+  Push and scheduled runs publish branch results directly.
 - `.github/renovate.json` configures Renovate for Docker and GitHub Actions.
   `.github/dependabot.yml` also configures Dependabot for those ecosystems.
   Their current scopes overlap. Avoid duplicate update PRs by assigning each
@@ -219,20 +255,35 @@ user's request or these working agreements.
 
 ### Tests and CI
 
-- Treat `.github/workflows/docker.image.yml` as the authoritative CI
-  pipeline. Inspect current job dependencies and event conditions before
-  changing it; do not assume every job runs for every event.
+- Treat `.github/workflows/docker.image.yml` as the authoritative container
+  build/test/publishing pipeline. `.github/workflows/codeql.yml` is the
+  dedicated GitHub Actions CodeQL scanner. Inspect both workflows' job
+  dependencies and event conditions before changing them; do not assume every
+  job runs for every event.
 - Scanner jobs execute on pull requests, but do not persist raw SARIF
   reports as workflow artifacts for those runs. SARIF artifacts are uploaded
   only for non-PR events and are short-lived; separate uploader jobs grant
   `security-events: write` only on those trusted events. Never expose that
   permission to a workflow definition or code controlled by a pull request.
-  Pull-request SARIF publication is intentionally deferred to issue #256,
-  which must provide a trusted handoff without public report artifacts.
-  Do not switch to `pull_request_target` or expose additional credentials to
-  PR-controlled code. The Docker publishing job runs only outside
-  `pull_request` events and requires the ShiftLeft scan, image tests, and all
-  blocking image scanners to succeed.
+  Pull-request SARIF publication remains deferred to issue #256 for the
+  container scanners in `docker.image.yml`; that issue must provide a trusted
+  handoff without public report artifacts. Do not switch those container
+  scans to `pull_request_target` or expose additional credentials to
+  PR-controlled code. These restrictions apply only to the container scanners;
+  the separate CodeQL pull-request workflow uses `pull_request_target` with
+  trusted workflow code and read-only scan permissions, then publishes through
+  its separately validated trusted publisher.
+- Keep CodeQL pull-request analysis read-only. The separate
+  `codeql-pr-upload.yml` workflow must run from the default branch, verify the
+  current PR head against the completed source run, and rerun the scanner from
+  trusted workflow code before publishing. Use
+  `.github/codeql/codeql-config.yml` from the trusted checkout for both PR
+  scans; never let a PR-controlled configuration select queries or exclusions.
+  PR source may be checked out for static analysis, but must remain data only:
+  never execute PR-controlled scripts, actions, build steps, or configuration.
+  Keep checkout credentials unpersisted. Do not consume SARIF or other artifacts produced by an
+  untrusted PR workflow. Keep `security-events: write` scoped to trusted CodeQL
+  jobs and do not grant it to ordinary PR validation workflows.
 - Preserve the separation between lint/security checks, image build,
   container tests, and publishing.
 - For Dockerfile or runtime changes, run the image build and relevant

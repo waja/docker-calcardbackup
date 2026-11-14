@@ -1,0 +1,7 @@
+# actionlint 1.7.12 bundled with Super-Linter v9.0.0 predates
+# GitHub Actions concurrency.queue support. Ignore only this parser error
+# and only for the publisher workflow that uses queue: max.
+paths:
+  .github/workflows/codeql-pr-upload.yml:
+    ignore:
+      - 'unexpected key "queue" for "concurrency" section'
