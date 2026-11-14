@@ -21,8 +21,44 @@ EOF
 fi
 BACKUP_CMD="/opt/calcardbackup/calcardbackup ${NC_DIR:=/nextcloud/} --output ${BACKUP_DIR:=/backup/} ${CALCARD_OPTS:=-i}"
 BACKUP_LOG="${BACKUP_LOG:-/backup.log}"
-touch "${BACKUP_LOG}"
-tail -F "${BACKUP_LOG}" &
+CRONTAB_FILE="${CRONTAB_FILE:-/crontab.conf}"
+
+case "$BACKUP_LOG" in
+/*) ;;
+*) BACKUP_LOG="$PWD/$BACKUP_LOG" ;;
+esac
+case "$CRONTAB_FILE" in
+/*) ;;
+*) CRONTAB_FILE="$PWD/$CRONTAB_FILE" ;;
+esac
+
+case "$BACKUP_LOG" in
+*'#'*)
+	echo "ERROR: BACKUP_LOG must not contain '#'."
+	exit 1
+	;;
+esac
+
+if ! mkdir -p "$(dirname "$BACKUP_LOG")" "$(dirname "$CRONTAB_FILE")"; then
+	echo "ERROR: Cannot create log or crontab directory." >&2
+	exit 1
+fi
+if ! : >>"$BACKUP_LOG"; then
+	echo "ERROR: Cannot initialize BACKUP_LOG: $BACKUP_LOG" >&2
+	exit 1
+fi
+
+BACKUP_LOG_CRON=$(printf "%s" "$BACKUP_LOG" | sed 's/%/\\%/g')
+if ! printf "%s\n" "${CRON_TIME:=5 4 * * *} ${BACKUP_CMD} >> ${BACKUP_LOG_CRON} 2>&1" >"$CRONTAB_FILE"; then
+	echo "ERROR: Cannot create CRONTAB_FILE: $CRONTAB_FILE" >&2
+	exit 1
+fi
+if ! crontab "$CRONTAB_FILE"; then
+	echo "ERROR: Cannot install crontab from: $CRONTAB_FILE" >&2
+	exit 1
+fi
+
+tail -F "$BACKUP_LOG" &
 
 if [ -n "${INIT_BACKUP}" ]; then
 	echo "=> Create a backup on the startup"
@@ -41,8 +77,5 @@ if [ -n "${INIT_BACKUP}" ]; then
 	${BACKUP_CMD} >>"${BACKUP_LOG}" 2>&1
 fi
 
-CRONTAB_FILE="${CRONTAB_FILE:-/crontab.conf}"
-echo "${CRON_TIME:=5 4 * * *} ${BACKUP_CMD} >> ${BACKUP_LOG} 2>&1" >"$CRONTAB_FILE"
-crontab "$CRONTAB_FILE"
 echo "=> Running cron task manager"
 exec crond -f

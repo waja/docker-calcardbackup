@@ -38,4 +38,8 @@ There is a [`docker-compose-example.yml`](https://raw.githubusercontent.com/waja
     DB_HOST           hostname database running on (optional)
     DB_PORT           port database running on (optional)
     CALCARD_OPTS      options passed to calcardbackup (optional)
+    BACKUP_LOG        log file for startup and scheduled backups; defaults to `/backup.log` (optional)
+    CRONTAB_FILE      generated crontab file; defaults to `/crontab.conf` (optional)
     MARIADB_SSL_SKIP  set to 'true' to prevent mariadb client force to use SSL
+
+Both paths may be absolute or relative. Relative paths are resolved against the container's working directory. Parent directories are created during startup; the paths must still be writable. `BACKUP_LOG` must not contain `#`, because it is embedded in the generated cron command.
