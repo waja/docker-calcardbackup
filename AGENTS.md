@@ -133,9 +133,10 @@ user's request or these working agreements.
   `security-events: write`. Verify the requirement and event/fork behavior;
   isolate such permissions in a dedicated reporting job that does not execute
   PR-controlled code. Do not grant them to scanner, build, or test jobs merely
-  because those jobs produce the report. If safe isolation is not practical,
-  retain the report as an artifact for inspection. A trusted workflow must
-  not blindly upload a PR-generated SARIF artifact. Prefer rerunning the
+  because those jobs produce the report. If safe isolation is not practical for a trusted non-PR workflow,
+  retain the report as an artifact for inspection. This fallback does not
+  apply to PR SARIF reports, which must not be persisted as workflow artifacts.
+  A trusted workflow must not blindly upload a PR-generated SARIF artifact. Prefer rerunning the
   scanner from the trusted workflow definition against the verified PR commit,
   without executing PR-controlled scripts or actions. Load the scanner,
   queries, exclusions, and other security-relevant configuration only from an
