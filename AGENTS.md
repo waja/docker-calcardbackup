@@ -199,12 +199,13 @@ user's request or these working agreements.
   window remains between that check and the SARIF upload: the upload must use
   GitHub's mutable pull-request ref to associate results with the PR, so a
   concurrent head update in that interval cannot be made atomic by this
-  workflow. Publisher runs for the same PR are also not serialized. If two
-  runs overlap, an older scan can finish after a newer one and publish its
-  result last. The final PR-state check reduces stale publication but cannot
-  eliminate either race. Per-PR serialization would add workflow coordination
-  and still would not make the final check and upload atomic; for this project,
-  we accept and document that residual risk rather than add that complexity.
+  workflow. Publisher runs are serialized by source repository ID and branch,
+  preventing overlapping uploads for the same source branch. This can also
+  serialize distinct PRs that reuse the same source branch name. GitHub may
+  replace an already-pending run in a concurrency group with a newer one;
+  the active run is never canceled. Serialization does not make the final
+  PR-state check and upload atomic, so the small TOCTOU window remains an
+  accepted residual risk.
   Push and scheduled runs publish branch results directly.
 - `.github/renovate.json` configures Renovate for Docker and GitHub Actions.
   `.github/dependabot.yml` also configures Dependabot for those ecosystems.
