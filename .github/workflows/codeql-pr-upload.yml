@@ -40,6 +40,7 @@ jobs:
       # This small artifact is produced by the trusted pull_request_target
       # workflow. It contains PR identity/revision metadata, never SARIF.
       - name: Download trusted pull request metadata
+        id: download_metadata
         continue-on-error: true
         uses: actions/download-artifact@v8
         with:
@@ -52,6 +53,8 @@ jobs:
         id: metadata
         if: always()
         uses: actions/github-script@v9
+        env:
+          DOWNLOAD_OUTCOME: ${{ steps.download_metadata.outcome }}
         with:
           script: |
             const fs = require("fs");
@@ -70,14 +73,20 @@ jobs:
               throw new Error("The source CodeQL run has no read-only PR scan job.");
             }
 
-            if (fs.existsSync("pr-metadata/pr.json") && fs.statSync("pr-metadata/pr.json").size > 0) {
-              core.setOutput("present", "true");
-              return;
-            }
-
             if (sourceScan.conclusion === "skipped") {
               core.notice("The source PR scan was skipped; no metadata or publication is expected.");
               core.setOutput("present", "false");
+              return;
+            }
+
+            if (process.env.DOWNLOAD_OUTCOME !== "success") {
+              throw new Error(
+                `The trusted metadata download did not succeed (outcome: ${process.env.DOWNLOAD_OUTCOME}).`,
+              );
+            }
+
+            if (fs.existsSync("pr-metadata/pr.json") && fs.statSync("pr-metadata/pr.json").size > 0) {
+              core.setOutput("present", "true");
               return;
             }
 
