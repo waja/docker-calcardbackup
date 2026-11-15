@@ -218,6 +218,17 @@ user's request or these working agreements.
 
 ### Project-specific change rules
 
+### Release procedure
+
+- Before creating a release or backport tag, verify that the tagged commit
+  contains the current `.github/workflows/docker.image.yml` release-publishing
+  policy. GitHub Actions runs the workflow definition from the tagged commit,
+  not from the current integration branch. An older workflow may still publish
+  a version-tag build as `latest`.
+- If a backport must be tagged from a commit that does not contain the current
+  workflow, reconcile the mutable aliases manually after publication so
+  `latest` and the version-scoped aliases point to the intended release.
+
 - Keep build-time behavior in `Dockerfile` and runtime behavior in
   `run.sh`. Do not bake deployment-specific configuration into the image.
 - When changing an environment variable, review its use in `run.sh`,

@@ -5,3 +5,6 @@ paths:
   .github/workflows/codeql-pr-upload.yml:
     ignore:
       - 'unexpected key "queue" for "concurrency" section'
+  .github/workflows/docker.image.yml:
+    ignore:
+      - 'unexpected key "queue" for "concurrency" section'
