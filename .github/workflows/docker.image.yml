@@ -139,6 +139,8 @@ jobs:
           path: /tmp/${{ env.IMAGE_NAME }}-${{ github.run_number }}.tar
   test:
     name: Run test
+    if: >-
+      !cancelled() && needs.test-build.result == 'success'
     needs:
       - test-build
     strategy:
@@ -178,6 +180,8 @@ jobs:
           fi
   dockle:
     name: Run Dockle tests
+    if: >-
+      !cancelled() && needs.test-build.result == 'success'
     outputs:
       sarif_artifact: dockle-sarif-${{ github.run_attempt }}
     needs:
@@ -226,6 +230,8 @@ jobs:
         run: exit 1
   trivy:
     name: Run Trivy tests
+    if: >-
+      !cancelled() && needs.test-build.result == 'success'
     outputs:
       sarif_artifact: trivy-sarif-${{ github.run_attempt }}
     needs:
@@ -266,6 +272,8 @@ jobs:
           path: trivy-results.sarif
   anchore:
     name: Run Anchore tests
+    if: >-
+      !cancelled() && needs.test-build.result == 'success'
     outputs:
       sarif_artifact: anchore-sarif-${{ github.run_attempt }}
     needs:
