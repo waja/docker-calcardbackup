@@ -25,6 +25,8 @@ env:
 jobs:
   super-linter:
     name: super-linter
+    # Super-Linter does not support GitHub's delete event.
+    if: github.event_name != 'delete'
     permissions:
       contents: read
     strategy:
@@ -81,6 +83,10 @@ jobs:
           path: reports
           retention-days: 1
   test-build:
+    # Continue validation for delete events even though Super-Linter is skipped.
+    if: >-
+      !cancelled() &&
+      (needs.super-linter.result == 'success' || github.event_name == 'delete')
     outputs:
       image_artifact: ${{ steps.artifact.outputs.name }}
     needs:
@@ -133,6 +139,8 @@ jobs:
           path: /tmp/${{ env.IMAGE_NAME }}-${{ github.run_number }}.tar
   test:
     name: Run test
+    if: >-
+      !cancelled() && needs.test-build.result == 'success'
     needs:
       - test-build
     strategy:
@@ -172,6 +180,8 @@ jobs:
           fi
   dockle:
     name: Run Dockle tests
+    if: >-
+      !cancelled() && needs.test-build.result == 'success'
     outputs:
       sarif_artifact: dockle-sarif-${{ github.run_attempt }}
     needs:
@@ -220,6 +230,8 @@ jobs:
         run: exit 1
   trivy:
     name: Run Trivy tests
+    if: >-
+      !cancelled() && needs.test-build.result == 'success'
     outputs:
       sarif_artifact: trivy-sarif-${{ github.run_attempt }}
     needs:
@@ -260,6 +272,8 @@ jobs:
           path: trivy-results.sarif
   anchore:
     name: Run Anchore tests
+    if: >-
+      !cancelled() && needs.test-build.result == 'success'
     outputs:
       sarif_artifact: anchore-sarif-${{ github.run_attempt }}
     needs:
