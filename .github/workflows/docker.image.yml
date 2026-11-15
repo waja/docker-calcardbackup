@@ -84,7 +84,9 @@ jobs:
           retention-days: 1
   test-build:
     # Continue validation for delete events even though Super-Linter is skipped.
-    if: always() && (needs.super-linter.result == 'success' || github.event_name == 'delete')
+    if: >-
+      !cancelled() &&
+      (needs.super-linter.result == 'success' || github.event_name == 'delete')
     outputs:
       image_artifact: ${{ steps.artifact.outputs.name }}
     needs:
