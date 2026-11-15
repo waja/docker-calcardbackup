@@ -729,6 +729,7 @@ jobs:
           QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
           QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
           EVENT_DELETED: ${{ github.event.deleted == true }}
+          EVENT_REF: ${{ github.event.ref }}
         run: |
           if [ -n "$GITHUB_TOKEN" ]; then
             printf '%s' "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
@@ -768,7 +769,7 @@ jobs:
             if output=$(docker buildx imagetools inspect "$image" 2>&1); then
               return 0
             fi
-            if printf '%s\n' "$output" | grep -Eiq 'manifest[_ -]unknown|no such manifest|(^|[^[:alnum:]_/-])manifest[[:space:]]+(not found|does not exist)'; then
+            if printf '%s\n' "$output" | grep -Eiq 'manifest[_ -]unknown|no such manifest'; then
               return 1
             fi
             echo "::error::Unable to inspect $image: $output"
@@ -804,6 +805,23 @@ jobs:
           if (( "${#available_releases[@]}" == 0 )); then
             echo "::error::No published release images are available; refusing to silently skip alias reconciliation"
             exit 1
+          fi
+
+          # A deleted release may have been the last release in one or more
+          # version scopes. Report aliases that no remaining release can replace.
+          if [ "$GITHUB_EVENT_NAME" = "delete" ] && [[ "$EVENT_REF" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)-[0-9]+$ ]]; then
+            deleted_major="${BASH_REMATCH[1]}"
+            deleted_minor="${BASH_REMATCH[2]}"
+            deleted_patch="${BASH_REMATCH[3]}"
+            if ! printf '%s\n' "${available_releases[@]}" | grep -Eq "^$deleted_major\.$deleted_minor\.$deleted_patch-"; then
+              echo "::warning::Orphaned release alias $deleted_major.$deleted_minor.$deleted_patch has no remaining release; remove it manually from configured registries"
+            fi
+            if ! printf '%s\n' "${available_releases[@]}" | grep -Eq "^$deleted_major\.$deleted_minor\."; then
+              echo "::warning::Orphaned release alias $deleted_major.$deleted_minor has no remaining release; remove it manually from configured registries"
+            fi
+            if ! printf '%s\n' "${available_releases[@]}" | grep -Eq "^$deleted_major\."; then
+              echo "::warning::Orphaned release alias $deleted_major has no remaining release; remove it manually from configured registries"
+            fi
           fi
 
           registry_releases="$(printf '%s\n' "${available_releases[@]}")"
