@@ -30,8 +30,8 @@ jobs:
     strategy:
       fail-fast: false
     concurrency:
-      group: ${{ github.ref_type == 'branch' && format('docker-branch-{0}', github.ref) || format('docker-release-{0}', github.ref) }}
-      cancel-in-progress: ${{ github.ref_type == 'branch' }}
+      group: ${{ github.event_name == 'delete' && format('docker-delete-{0}', github.event.ref) || (github.ref_type == 'branch' && format('docker-branch-{0}', github.ref) || format('docker-release-{0}', github.ref)) }}
+      cancel-in-progress: ${{ github.event_name != 'delete' && github.ref_type == 'branch' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -790,7 +790,8 @@ jobs:
 
           # A deleted release may have been the last release in one or more
           # version scopes. Report aliases that no remaining release can replace.
-          if [ "$GITHUB_EVENT_NAME" = "delete" ] && [[ "$EVENT_REF" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)-[0-9]+$ ]]; then
+          deleted_tag="${EVENT_REF#refs/tags/}"
+          if { [ "$GITHUB_EVENT_NAME" = "delete" ] || [ "$EVENT_DELETED" = "true" ]; } && [[ "$deleted_tag" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)-[0-9]+$ ]]; then
             deleted_major="${BASH_REMATCH[1]}"
             deleted_minor="${BASH_REMATCH[2]}"
             deleted_patch="${BASH_REMATCH[3]}"
