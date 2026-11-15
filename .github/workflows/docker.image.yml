@@ -25,6 +25,8 @@ env:
 jobs:
   super-linter:
     name: super-linter
+    # Super-Linter does not support GitHub's delete event.
+    if: github.event_name != 'delete'
     permissions:
       contents: read
     strategy:
