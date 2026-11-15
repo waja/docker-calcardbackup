@@ -749,7 +749,9 @@ jobs:
             if output=$(docker buildx imagetools inspect "$image" 2>&1); then
               return 0
             fi
-            if printf '%s\n' "$output" | grep -Eiq 'manifest[_ -]unknown|no such manifest'; then
+            if printf '%s\n' "$output" | grep -Eiq 'manifest[_ -]unknown|no such manifest' ||
+              printf '%s\n' "$output" | grep -Fqx -- "$image: not found" ||
+              printf '%s\n' "$output" | grep -Fqx -- "ERROR: $image: not found"; then
               return 1
             fi
             echo "::error::Unable to inspect $image: $output"
