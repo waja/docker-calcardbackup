@@ -405,7 +405,6 @@ jobs:
   release-docker:
     name: Release Docker images
     outputs:
-      image: ${{ steps.prep.outputs.image }}
       release_tag_current: ${{ steps.publish_tag_freshness.outputs.current }}
     # Keep publishing credentials away from PR code and untrusted manual refs.
     # Reruns are authorized against the user who triggered the rerun as well.
@@ -443,26 +442,13 @@ jobs:
       fail-fast: false
     concurrency:
       group: ${{ github.ref_type == 'branch' && format('docker-publish-branch-{0}', github.ref) || 'docker-release-tags' }}
-      cancel-in-progress: false
+      queue: max
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
           persist-credentials: false
-
-      - name: Check release tag freshness
-        id: tag_freshness
-        if: github.ref_type == 'tag'
-        run: |
-          git fetch --force --prune --prune-tags origin '+refs/tags/*:refs/tags/*'
-          tag="${GITHUB_REF#refs/tags/}"
-          if [ "$(git rev-parse "refs/tags/$tag^{commit}")" = "$GITHUB_SHA" ]; then
-            echo "current=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "current=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping stale release run for $tag at $GITHUB_SHA; current tag target is $(git rev-parse "refs/tags/$tag^{commit}")"
-          fi
 
       - name: Check branch freshness
         id: freshness
@@ -484,13 +470,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
           QUAY_TOKEN: ${{ secrets.QUAY_TOKEN }}
-          EVENT_DELETED: ${{ github.event.deleted == true }}
         run: |
           USER="${GITHUB_REPOSITORY_OWNER}"
           IMAGE_NAME="${GITHUB_REPOSITORY#*/}"
           IMAGE_NAME="${IMAGE_NAME#docker-}"
           DOCKER_IMAGE="${USER}/${IMAGE_NAME}"
-          echo "image=${DOCKER_IMAGE}" >> "$GITHUB_OUTPUT"
           VERSION=edge
           # running on a tag
           if [[ $GITHUB_REF == refs/tags/* ]]; then
@@ -678,13 +662,11 @@ jobs:
       - release-docker
     concurrency:
       group: docker-release-tags
-      cancel-in-progress: false
+      queue: max
     permissions:
       contents: read
       packages: write
     runs-on: ubuntu-latest
-    env:
-      DOCKER_IMAGE: ${{ needs.release-docker.outputs.image }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -696,8 +678,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Resolve image name for deleted release
-        if: github.event_name == 'delete' || github.event.deleted == true
+      - name: Resolve image name
         run: |
           IMAGE_NAME="${GITHUB_REPOSITORY#*/}"
           IMAGE_NAME="${IMAGE_NAME#docker-}"
