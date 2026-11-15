@@ -229,7 +229,6 @@ user's request or these working agreements.
   workflow, reconcile the mutable aliases manually after publication so
   `latest` and the version-scoped aliases point to the intended release.
 
-
 - Keep build-time behavior in `Dockerfile` and runtime behavior in
   `run.sh`. Do not bake deployment-specific configuration into the image.
 - When changing an environment variable, review its use in `run.sh`,

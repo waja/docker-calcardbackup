@@ -535,7 +535,7 @@ jobs:
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
-          username: ${USER}
+          username: ${{ github.actor }}
           password: ${{ env.GITHUB_TOKEN }}
 
       - name: Login to DockerHub Container Registry
