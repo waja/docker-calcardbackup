@@ -29,9 +29,6 @@ jobs:
       contents: read
     strategy:
       fail-fast: false
-    concurrency:
-      group: ${{ github.event_name == 'delete' && format('docker-delete-{0}', github.event.ref) || (github.ref_type == 'branch' && format('docker-branch-{0}', github.ref) || format('docker-release-{0}', github.ref)) }}
-      cancel-in-progress: ${{ github.event_name != 'delete' && github.ref_type == 'branch' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -684,18 +681,21 @@ jobs:
           IMAGE_NAME="${IMAGE_NAME#docker-}"
           echo "DOCKER_IMAGE=${GITHUB_REPOSITORY_OWNER}/${IMAGE_NAME}" >> "$GITHUB_ENV"
 
-      - name: Recheck release tag before alias reconciliation
+      - name: Fetch release tags and check freshness
         id: alias_tag_freshness
-        if: github.event_name == 'push' && github.ref_type == 'tag' && github.event.deleted != true
+        env:
+          EVENT_DELETED: ${{ github.event.deleted == true }}
         run: |
           git fetch --force --prune --prune-tags origin '+refs/tags/*:refs/tags/*'
-          tag="${GITHUB_REF#refs/tags/}"
-          current_target="$(git rev-parse --verify "refs/tags/$tag^{commit}" 2>/dev/null || true)"
-          if [ "$current_target" = "$GITHUB_SHA" ]; then
-            echo "current=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "current=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping alias reconciliation for stale release tag $tag at $GITHUB_SHA; current tag target is ${current_target:-missing}"
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$EVENT_DELETED" != "true" ]; then
+            tag="${GITHUB_REF#refs/tags/}"
+            current_target="$(git rev-parse --verify "refs/tags/$tag^{commit}" 2>/dev/null || true)"
+            if [ "$current_target" = "$GITHUB_SHA" ]; then
+              echo "current=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "current=false" >> "$GITHUB_OUTPUT"
+              echo "Skipping alias reconciliation for stale release tag $tag at $GITHUB_SHA; current tag target is ${current_target:-missing}"
+            fi
           fi
 
       - name: Reconcile release aliases
@@ -722,7 +722,6 @@ jobs:
             printf '%s' "$QUAY_TOKEN" | docker login quay.io -u "$QUAY_USERNAME" --password-stdin
           fi
 
-          git fetch --force --prune --prune-tags origin '+refs/tags/*:refs/tags/*'
           RELEASES="$(git tag --list | grep -E '^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$' | sort -V || true)"
           if [ -z "$RELEASES" ]; then
             if [ "$GITHUB_EVENT_NAME" = "delete" ] || [ "$EVENT_DELETED" = "true" ]; then
