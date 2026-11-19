@@ -20,8 +20,8 @@ EOF
 	calcardbackup_enable_mysql_optionfiles
 fi
 BACKUP_CMD="/opt/calcardbackup/calcardbackup ${NC_DIR:=/nextcloud/} --output ${BACKUP_DIR:=/backup/} ${CALCARD_OPTS:=-i}"
-BACKUP_LOG="${BACKUP_LOG:-/backup.log}"
-CRONTAB_FILE="${CRONTAB_FILE:-/crontab.conf}"
+BACKUP_LOG="${BACKUP_LOG:-$BACKUP_DIR/backup.log}"
+CRONTAB_FILE="${CRONTAB_FILE:-/opt/calcardbackup/config/crontab.conf}"
 
 case "$BACKUP_LOG" in
 /*) ;;
@@ -53,10 +53,6 @@ if ! printf "%s\n" "${CRON_TIME:=5 4 * * *} ${BACKUP_CMD} >> ${BACKUP_LOG_CRON} 
 	echo "ERROR: Cannot create CRONTAB_FILE: $CRONTAB_FILE" >&2
 	exit 1
 fi
-if ! crontab "$CRONTAB_FILE"; then
-	echo "ERROR: Cannot install crontab from: $CRONTAB_FILE" >&2
-	exit 1
-fi
 
 tail -F "$BACKUP_LOG" &
 
@@ -78,4 +74,4 @@ if [ -n "${INIT_BACKUP}" ]; then
 fi
 
 echo "=> Running cron task manager"
-exec crond -f
+exec supercronic "$CRONTAB_FILE"
