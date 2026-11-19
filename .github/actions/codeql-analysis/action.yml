@@ -37,6 +37,7 @@ runs:
     - name: Perform CodeQL analysis
       uses: github/codeql-action/analyze@v4
       with:
+        checkout_path: ${{ inputs.source-root }}
         category: "/language:actions"
         output: ${{ inputs.output }}
         upload: ${{ inputs.upload }}
