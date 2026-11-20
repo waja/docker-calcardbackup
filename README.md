@@ -14,14 +14,46 @@
 ## Usage
 
 <!-- textlint-disable -->
-
+```cmd
 docker container run -d \
---link mysql
---volume /path/to/my/backup/folder:/backup
---volume /path/to/my/nextcloud/config:/nextcloud/config
-waja/calcardbackup
-
+    --link mysql \
+    --volume /path/to/my/backup/folder:/backup \
+    --volume /path/to/my/nextcloud/config:/nextcloud/config \
+    waja/calcardbackup
+```
 <!-- textlint-enable -->
+
+## Running rootlessly as a dedicated user
+
+As cron jobs are scheduled by [supercronic](https://github.com/aptible/supercronic), it is possible to deploy this image in rootless mode with a dedicated user.
+
+The user running the container must have following permissions:
+
+- read access to the nexcloud config path (`/path/to/my/nextcloud/config`)
+- write access to further mounted host paths (`/path/to/my/backup/folder` etc.)
+- access to nextcloud's database (`SELECT` priviledge at a minimum)
+
+Additionally, all files changing at runtime such as `BACKUP_LOG`, `CRONTAB_FILE` and `MARIADB_CLIENT_CNF` must point to writable mounts or volumes inside the container, for instance `/backup`:
+
+```env
+BACKUP_LOG=/backup/backup.log
+CRONTAB_FILE=/backup/crontab.conf
+MARIADB_CLIENT_CNF=/backup/mariadb-client.cnf
+```
+
+Start the rootless container with `--user` and `--readonly` flags. `--user` designates the user with limited priviledges while `--read-only` prevents changes to the core image.
+Assuming user with `uid=1000` and `gid=1000` meets above requirements:
+
+```cmd
+docker container run -d \
+    --user 1000:1000 \
+    --read-only \
+    --link mysql \
+    --volume /path/to/my/backup/folder:/backup \
+    --volume /path/to/my/nextcloud/config:/nextcloud/config:ro \
+    waja/calcardbackup
+```
+
 
 ## Docker compose
 
