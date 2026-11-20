@@ -20,8 +20,8 @@ EOF
 	calcardbackup_enable_mysql_optionfiles
 fi
 BACKUP_CMD="/opt/calcardbackup/calcardbackup ${NC_DIR:=/nextcloud/} --output ${BACKUP_DIR:=/backup/} ${CALCARD_OPTS:=-i}"
-BACKUP_LOG="${BACKUP_LOG:-$BACKUP_DIR/backup.log}"
-CRONTAB_FILE="${CRONTAB_FILE:-/opt/calcardbackup/config/crontab.conf}"
+BACKUP_LOG="${BACKUP_LOG:-/backup.log}"
+CRONTAB_FILE="${CRONTAB_FILE:-/crontab.conf}"
 
 case "$BACKUP_LOG" in
 /*) ;;
