@@ -53,10 +53,6 @@ if ! printf "%s\n" "${CRON_TIME:=5 4 * * *} ${BACKUP_CMD} >> ${BACKUP_LOG_CRON} 
 	echo "ERROR: Cannot create CRONTAB_FILE: $CRONTAB_FILE" >&2
 	exit 1
 fi
-if ! crontab "$CRONTAB_FILE"; then
-	echo "ERROR: Cannot install crontab from: $CRONTAB_FILE" >&2
-	exit 1
-fi
 
 tail -F "$BACKUP_LOG" &
 
@@ -78,4 +74,4 @@ if [ -n "${INIT_BACKUP}" ]; then
 fi
 
 echo "=> Running cron task manager"
-exec crond -f
+exec supercronic "$CRONTAB_FILE"
