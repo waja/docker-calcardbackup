@@ -173,6 +173,8 @@ user's request or these working agreements.
   `docker-compose-complex-example.yml` are deployment examples.
 - `.github/workflows/docker.image.yml` contains lint/security checks,
   image build and test jobs, artifact handling, and image publishing.
+- `tests/test_rootless.sh` runs the built image with an unprivileged UID/GID,
+  a read-only root filesystem, and verifies MariaDB client option-file loading.
 - `.github/actions/codeql-analysis/action.yml` contains the shared CodeQL
   initialization and analysis steps for GitHub Actions workflow files.
   `.github/workflows/codeql.yml` invokes it for trusted branch scans and
@@ -301,6 +303,9 @@ user's request or these working agreements.
 - For Dockerfile or runtime changes, run the image build and relevant
   container behavior checks. Consider supported architecture/platform
   implications when changing base images or packages.
+- The image test pipeline runs `tests/test_rootless.sh` against the built
+  image. Keep it checking rootless startup, writable runtime files,
+  Supercronic, and MariaDB option-file loading when SSL skipping is enabled.
 - For `run.sh` changes, validate shell syntax and affected startup,
   wait, backup, logging, or cron behavior.
 - For dependency automation changes, validate actual dependency extraction

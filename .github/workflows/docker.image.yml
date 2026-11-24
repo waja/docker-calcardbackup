@@ -135,6 +135,10 @@ jobs:
             VCS_REF="$(git rev-parse --short HEAD)"
             VCS_URL="$(git config --get remote.origin.url)"
             VCS_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+      - name: Test rootless container operation
+        run: |
+          docker load --input /tmp/${{ env.IMAGE_NAME }}-${{ github.run_number }}.tar
+          bash tests/test_rootless.sh localhost:5000/foobar/${{ env.IMAGE_NAME }}
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:

@@ -45,8 +45,9 @@ RUN curl -L "https://codeberg.org/BernieO/calcardbackup/archive/v$CALCARDBACKUP_
   apk del build-dependencies && \
   # Install needed packages
   apk --no-cache add bash curl findutils mysql-client postgresql-client sqlite gzip zip gnupg supercronic && \
-  # Create backup dir and make our start script executable
-  mkdir /backup
+  # Create the backup mount and expose MariaDB's client config through it
+  mkdir -p /backup /etc/my.cnf.d && \
+  ln -sfn /backup/mariadb-client.cnf /etc/my.cnf.d/my.cnf
 
 VOLUME ["/backup"]
 
