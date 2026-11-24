@@ -41,7 +41,7 @@ CRONTAB_FILE=/backup/crontab.conf
 MARIADB_CLIENT_CNF=/backup/mariadb-client.cnf
 ```
 
-Start the rootless container with `--user` and `--readonly` flags. `--user` designates the user with limited priviledges while `--read-only` prevents changes to the core image.
+Start the rootless container with `--user` and `--read-only` flags. `--user` designates the user with limited priviledges while `--read-only` prevents changes to the core image.
 Assuming user with `uid=1000` and `gid=1000` meets above requirements:
 
 ```cmd
