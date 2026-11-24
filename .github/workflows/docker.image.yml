@@ -301,7 +301,7 @@ jobs:
           docker image ls -a
           docker push localhost:5000/foobar/${{ env.IMAGE_NAME }}
       - name: Run Anchore vulnerability scan
-        uses: anchore/scan-action@v7.4.2
+        uses: anchore/scan-action@v7.4.3
         with:
           image: localhost:5000/foobar/${{ env.IMAGE_NAME }}
           # SARIF is uploaded by the separate least-privilege uploader job.
